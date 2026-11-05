@@ -489,3 +489,20 @@ input::placeholder {
     font-size: 12px;
   }
 }
+/* MonsterDrop V6.4 visibility fix */
+
+[hidden] {
+  display: none !important;
+}
+
+#generatorView:not([hidden]),
+#presetsView:not([hidden]),
+#checkerView:not([hidden]),
+#aboutView:not([hidden]) {
+  display: block !important;
+}
+
+#checkerView {
+  width: 100%;
+  min-height: 400px;
+}
