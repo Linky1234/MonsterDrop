@@ -1,16 +1,17 @@
 
 :root {
   color-scheme: dark;
-  --bg: #0c0d1d;
-  --sidebar: #101126;
-  --panel: #17192f;
-  --input: #101225;
-  --border: #30334d;
-  --text: #f3f2ff;
-  --muted: #a0a3be;
-  --purple: #8565ff;
-  --purple-dark: #6548df;
-  --danger: #ff9baf;
+  --bg: #06121f;
+  --sidebar: #091827;
+  --panel: #102336;
+  --input: #081a2a;
+  --border: #254557;
+  --text: #e8fcff;
+  --muted: #91b2c1;
+  --aqua: #38e4d2;
+  --aqua-dark: #1bb6b0;
+  --blue: #60b9f6;
+  --danger: #ff9db1;
 }
 
 * {
@@ -23,15 +24,17 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100vh;
   color: var(--text);
+  background:
+    radial-gradient(ellipse at 80% 0%, #123f55 0%, transparent 43%),
+    radial-gradient(ellipse at 5% 85%, #10364b 0%, transparent 40%),
+    var(--bg);
   font-family: Inter, Arial, sans-serif;
   line-height: 1.5;
 }
 
-button,
-input,
-select {
+button, input, select {
   font: inherit;
 }
 
@@ -52,9 +55,9 @@ button:disabled {
 .sidebar {
   width: 245px;
   flex-shrink: 0;
-  background: var(--sidebar);
-  border-right: 1px solid var(--border);
   padding: 25px 15px;
+  background: #091725ed;
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
 }
@@ -69,16 +72,18 @@ button:disabled {
 .brand-icon {
   display: grid;
   place-items: center;
-  width: 45px;
-  height: 45px;
-  border-radius: 12px;
-  background: #302455;
+  width: 46px;
+  height: 46px;
+  background: #103e4b;
+  border: 1px solid #2b9f9d;
+  border-radius: 13px;
   font-size: 25px;
 }
 
 .brand h2 {
   margin: 0;
   font-size: 20px;
+  letter-spacing: -.5px;
 }
 
 .brand small {
@@ -94,21 +99,22 @@ nav {
 .nav {
   width: 100%;
   padding: 13px 15px;
+  text-align: left;
+  color: var(--muted);
+  background: transparent;
   border: 0;
   border-radius: 9px;
-  text-align: left;
-  background: transparent;
-  color: var(--muted);
 }
 
 .nav:hover {
-  background: #22243d;
+  background: #173449;
   color: white;
 }
 
 .nav.active {
-  background: #34265f;
-  color: #e6dcff;
+  color: var(--aqua);
+  background: #123a46;
+  border: 1px solid #247e80;
 }
 
 .sidebar-bottom {
@@ -124,18 +130,19 @@ nav {
 }
 
 .topbar {
-  min-height: 70px;
-  padding: 20px 35px;
-  border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  min-height: 70px;
+  padding: 20px 35px;
+  border-bottom: 1px solid var(--border);
   color: var(--muted);
   font-size: 14px;
 }
 
 .status {
-  color: #75d9b1;
+  color: var(--aqua);
 }
 
 .content {
@@ -149,25 +156,23 @@ nav {
 }
 
 .eyebrow {
-  color: #aa92ff;
+  color: var(--aqua);
   font-size: 12px;
-  letter-spacing: 2px;
   font-weight: 700;
+  letter-spacing: 2px;
 }
 
 h1 {
-  font-size: clamp(28px, 4vw, 38px);
   margin: 10px 0;
+  font-size: clamp(28px, 4vw, 38px);
 }
 
 h2 {
-  margin-top: 0;
+  margin: 0 0 10px;
   font-size: 19px;
 }
 
-.heading p,
-.panel-title p,
-.muted {
+.heading p, .muted {
   color: var(--muted);
 }
 
@@ -178,11 +183,11 @@ h2 {
   margin-bottom: 25px;
 }
 
-.stat,
-.panel {
-  background: var(--panel);
+.stat, .panel {
+  background: #102336e8;
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: 14px;
+  box-shadow: 0 8px 30px #00000018;
 }
 
 .stat {
@@ -191,15 +196,15 @@ h2 {
 
 .stat span {
   display: block;
-  font-size: 12px;
   color: var(--muted);
+  font-size: 12px;
 }
 
 .stat strong {
   display: block;
-  margin-top: 7px;
+  margin-top: 6px;
+  color: var(--aqua);
   font-size: 27px;
-  color: #b49fff;
 }
 
 .panel {
@@ -207,14 +212,11 @@ h2 {
   margin-bottom: 25px;
 }
 
-.panel-title {
-  margin-bottom: 22px;
-}
-
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+  margin-top: 20px;
 }
 
 label {
@@ -229,74 +231,129 @@ label.full {
   grid-column: 1 / -1;
 }
 
-input,
-select {
+input, select {
   width: 100%;
   padding: 13px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  outline: none;
-  background: var(--input);
   color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  outline: none;
 }
 
-input:focus,
-select:focus {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 3px #8565ff25;
+input:focus, select:focus {
+  border-color: var(--aqua);
+  box-shadow: 0 0 0 3px #38e4d225;
 }
 
 input::placeholder {
-  color: #737790;
+  color: #7893a5;
 }
 
-.actions {
-  display: flex;
+.provider-heading {
+  margin-top: 32px;
+  margin-bottom: 17px;
+}
+
+.provider-heading p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 25px;
 }
 
-.primary,
-.secondary {
+.provider-option {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  min-height: 56px;
+  padding: 13px 17px;
+  color: var(--muted);
+  background: #091725;
+  border: 1px solid #263e50;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.provider-option:hover {
+  border-color: #2d9797;
+}
+
+.provider-option.selected {
+  color: var(--text);
+  background: #103540;
+  border-color: #279d9a;
+}
+
+.provider-option input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--aqua);
+  cursor: pointer;
+}
+
+.selection-actions, .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.primary, .secondary {
   padding: 12px 18px;
-  border-radius: 9px;
+  border-radius: 10px;
   font-weight: 600;
 }
 
 .primary {
-  background: var(--purple);
-  color: white;
-  border: 1px solid var(--purple);
+  color: #05232b;
+  background: linear-gradient(110deg, var(--aqua), #68caff);
+  border: 1px solid var(--aqua);
+  box-shadow: 0 0 20px #38e4d21c;
 }
 
 .primary:hover {
-  background: var(--purple-dark);
+  filter: brightness(1.08);
 }
 
 .secondary {
-  background: #24263f;
-  color: #e6e4ff;
+  color: var(--text);
+  background: #172c40;
   border: 1px solid var(--border);
 }
 
 .secondary:hover {
-  background: #343653;
+  background: #23445a;
+}
+
+.extras {
+  margin-top: 25px;
 }
 
 .error {
   margin-top: 15px;
   padding: 12px;
-  border: 1px solid #87465b;
-  background: #472433;
-  border-radius: 8px;
   color: var(--danger);
+  background: #442737;
+  border: 1px solid #9b5266;
+  border-radius: 8px;
 }
 
 .results-header {
   display: flex;
   justify-content: space-between;
-  gap: 15px;
   align-items: center;
+  gap: 15px;
   margin-bottom: 20px;
 }
 
@@ -309,10 +366,10 @@ input::placeholder {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--input);
   padding: 12px;
+  background: var(--input);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
 }
 
 .link-info {
@@ -328,10 +385,10 @@ input::placeholder {
 
 .link-info a {
   display: block;
-  color: #b9a8ff;
-  text-decoration: none;
-  overflow-wrap: anywhere;
+  color: #78e8e1;
   font-size: 13px;
+  overflow-wrap: anywhere;
+  text-decoration: none;
 }
 
 .link-info a:hover {
@@ -339,11 +396,11 @@ input::placeholder {
 }
 
 .link-item button {
-  background: #33285b;
-  border: 1px solid #514079;
-  color: white;
-  border-radius: 7px;
   padding: 8px 12px;
+  color: var(--text);
+  background: #174552;
+  border: 1px solid #287c82;
+  border-radius: 8px;
 }
 
 .pagination {
@@ -361,16 +418,17 @@ input::placeholder {
 }
 
 .preset-card {
+  padding: 20px;
   text-align: left;
-  padding: 22px;
+  color: var(--text);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--panel);
-  color: var(--text);
+  cursor: pointer;
 }
 
 .preset-card:hover {
-  border-color: var(--purple);
+  border-color: var(--aqua);
 }
 
 .preset-card strong {
@@ -412,21 +470,18 @@ input::placeholder {
 }
 
 @media (max-width: 560px) {
-  .form-grid,
-  .stats,
-  .preset-grid {
+  .form-grid, .stats, .provider-grid, .preset-grid {
     grid-template-columns: 1fr;
   }
 
-  .actions,
-  .results-header {
+  .actions, .results-header {
     flex-direction: column;
     align-items: stretch;
   }
 
   .link-item {
-    align-items: stretch;
     flex-direction: column;
+    align-items: stretch;
   }
 
   .pagination {
