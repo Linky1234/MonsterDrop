@@ -4,237 +4,171 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101126">
-  <title>PotatoGen — CDN Link Generator</title>
-  <link rel="stylesheet" href="./style.css?v=61">
-  <script src="./app.js?v=61" defer></script>
+  <meta name="theme-color" content="#081824">
+  <title>MonsterDrop — Link Generator</title>
+  <link rel="stylesheet" href="./style.css?v=62">
+  <script src="./app.js?v=62" defer></script>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">🥔</div>
-        <div>
-          <h2>PotatoGen</h2>
-          <small>CDN Link Generator</small>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🌌</div>
+      <div>
+        <h2>MonsterDrop</h2>
+        <small>Galactic Link Generator</small>
+      </div>
+    </div>
+    <nav>
+      <button class="nav active" data-view="generator">✦ Generator</button>
+      <button class="nav" data-view="presets">◈ Providers</button>
+      <button class="nav" data-view="about">ⓘ About</button>
+    </nav>
+    <div class="sidebar-bottom">MonsterDrop V6.2</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <span>MonsterDrop / Dashboard</span>
+      <span class="status">● Ready</span>
+    </header>
+
+    <div class="content">
+      <section id="generatorView">
+        <div class="heading">
+          <span class="eyebrow">GALACTIC AQUA EDITION</span>
+          <h1>Generate Links</h1>
+          <p>Discover files from a public GitHub repository and generate links through selected providers.</p>
         </div>
-      </div>
 
-      <nav>
-        <button class="nav active" data-view="generator">
-          ⚡ Generator
-        </button>
-        <button class="nav" data-view="presets">
-          📦 CDN Presets
-        </button>
-        <button class="nav" data-view="about">
-          ℹ️ About
-        </button>
-      </nav>
+        <div class="stats">
+          <div class="stat">
+            <span>Candidate limit</span>
+            <strong>100M</strong>
+          </div>
+          <div class="stat">
+            <span>Provider options</span>
+            <strong>13</strong>
+          </div>
+          <div class="stat">
+            <span>Page sizes</span>
+            <strong>100 / 1K</strong>
+          </div>
+        </div>
 
-      <div class="sidebar-bottom">
-        PotatoGen V6.1
-        <br>GitHub Pages Edition
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <span>PotatoGen / Dashboard</span>
-        <span class="status">● Ready</span>
-      </header>
-
-      <div class="content">
-        <section id="generatorView">
-          <div class="heading">
-            <span class="eyebrow">LINK GENERATOR</span>
-            <h1>Generate CDN Links</h1>
-            <p>
-              Generate links for individual files or
-              automatically discover an entire public
-              GitHub repository.
-            </p>
+        <form id="generatorForm" class="panel">
+          <h2>Generator Settings</h2>
+          <div class="form-grid">
+            <label>
+              Generation Mode
+              <select id="mode">
+                <option value="repository">Entire Repository</option>
+                <option value="file">Single File</option>
+              </select>
+            </label>
+            <label>
+              Branch
+              <input id="branch" value="main" required>
+            </label>
+            <label class="full">
+              GitHub Repository
+              <input id="repo" placeholder="username/repository or GitHub URL" required>
+            </label>
+            <label id="fileField" class="full" hidden>
+              File Path
+              <input id="file" placeholder="folder/index.html">
+            </label>
+            <label>
+              Links Per Page
+              <select id="pageSize">
+                <option value="100">100</option>
+                <option value="1000">1,000</option>
+              </select>
+            </label>
+            <label>
+              Maximum Links
+              <input id="limit" type="number" min="1" max="100000000" value="100000000">
+            </label>
           </div>
 
-          <div class="stats">
-            <div class="stat">
-              <span>Maximum Candidates</span>
-              <strong>100M</strong>
-            </div>
-            <div class="stat">
-              <span>CDN Providers</span>
-              <strong>5</strong>
-            </div>
-            <div class="stat">
-              <span>Page Sizes</span>
-              <strong>100 / 1K</strong>
-            </div>
+          <div class="provider-heading">
+            <h2>Providers</h2>
+            <p class="muted">Select one or more link providers.</p>
+          </div>
+          <div id="providerGrid" class="provider-grid"></div>
+          <div class="selection-actions">
+            <button id="selectAll" class="secondary" type="button">Select all</button>
+            <button id="clearProviders" class="secondary" type="button">Clear all</button>
           </div>
 
-          <form id="generatorForm" class="panel">
-            <div class="panel-title">
-              <h2>Generator Settings</h2>
-              <p>Configure your GitHub source and CDN.</p>
-            </div>
-
-            <div class="form-grid">
-              <label>
-                Generation Mode
-                <select id="mode">
-                  <option value="repository">
-                    Entire Repository
-                  </option>
-                  <option value="file">
-                    Single File
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                CDN Provider
-                <select id="provider">
-                  <option value="all">
-                    All Providers
-                  </option>
-                  <option value="jsdelivr">
-                    jsDelivr
-                  </option>
-                  <option value="statically">
-                    Statically
-                  </option>
-                  <option value="githack">
-                    GitHack
-                  </option>
-                  <option value="raw">
-                    GitHub Raw
-                  </option>
-                  <option value="pages">
-                    GitHub Pages
-                  </option>
-                </select>
-              </label>
-
-              <label class="full">
-                GitHub Repository
-                <input
-                  id="repo"
-                  type="text"
-                  placeholder="username/repository or https://github.com/username/repository"
-                  required
-                >
-              </label>
-
-              <label>
-                Branch
-                <input
-                  id="branch"
-                  type="text"
-                  value="main"
-                  required
-                >
-              </label>
-
-              <label id="fileField" hidden>
-                File Path
-                <input
-                  id="file"
-                  type="text"
-                  placeholder="folder/index.html"
-                >
-              </label>
-
-              <label>
-                Links Per Page
-                <select id="pageSize">
-                  <option value="100">100 links</option>
-                  <option value="1000">1,000 links</option>
-                </select>
-              </label>
-
-              <label>
-                Maximum Links
-                <input
-                  id="limit"
-                  type="number"
-                  min="1"
-                  max="100000000"
-                  value="100000000"
-                >
-              </label>
-            </div>
-
-            <div class="actions">
-              <button class="primary" type="submit" id="generate">
-                ⚡ Generate Links
-              </button>
-              <button class="secondary" type="button" id="clear">
-                Clear
-              </button>
-            </div>
-
-            <div id="formError" class="error" role="alert" hidden></div>
-            <p id="scanStatus" class="muted" role="status"></p>
-          </form>
-
-          <section class="panel results" id="results" hidden>
-            <div class="results-header">
-              <div>
-                <h2>Generated Links</h2>
-                <p id="resultsSummary" class="muted"></p>
-              </div>
-              <button class="secondary" id="copyPage" type="button">
-                Copy Page
-              </button>
-            </div>
-
-            <div id="linkList" class="link-list"></div>
-
-            <div class="pagination">
-              <button class="secondary" id="prev" type="button">
-                Previous
-              </button>
-              <span id="pageLabel">Page 1</span>
-              <button class="secondary" id="next" type="button">
-                Next
-              </button>
-            </div>
-          </section>
-        </section>
-
-        <section id="presetsView" hidden>
-          <div class="heading">
-            <span class="eyebrow">CDN PROVIDERS</span>
-            <h1>CDN Presets</h1>
-            <p>Choose a provider to use in the generator.</p>
+          <div class="provider-heading">
+            <h2>Special links</h2>
           </div>
-          <div id="presetCards" class="preset-grid"></div>
-        </section>
+          <div id="specialGrid" class="provider-grid"></div>
 
-        <section id="aboutView" hidden>
-          <div class="heading">
-            <span class="eyebrow">ABOUT</span>
-            <h1>About PotatoGen</h1>
+          <div id="extraFields" class="form-grid extras" hidden>
+            <label id="npmField" class="full" hidden>
+              npm Package and Version
+              <input id="npmPackage" placeholder="@scope/package@1.0.0 or package@1.0.0">
+            </label>
+            <label id="s3Field" class="full" hidden>
+              Public Amazon S3 Bucket
+              <input id="s3Bucket" placeholder="my-public-bucket">
+            </label>
+            <label id="surgeField" class="full" hidden>
+              Surge Domain
+              <input id="surgeDomain" placeholder="my-project.surge.sh">
+            </label>
           </div>
-          <div class="panel">
-            <h2>GitHub CDN Link Generator</h2>
-            <p>
-              PotatoGen generates candidate CDN links for
-              files hosted in public GitHub repositories.
-            </p>
-            <p>
-              Repository mode retrieves file paths using
-              GitHub's public API. Links are not guaranteed
-              to work unless the underlying files and
-              provider endpoints are available.
-            </p>
-            <p>
-              Results are paginated to keep the interface
-              responsive.
-            </p>
+
+          <div class="actions">
+            <button class="primary" id="generate" type="submit">✦ Generate Links</button>
+            <button class="secondary" id="clear" type="button">Clear</button>
+          </div>
+
+          <div id="formError" class="error" role="alert" hidden></div>
+          <p id="scanStatus" class="muted" role="status"></p>
+        </form>
+
+        <section id="results" class="panel" hidden>
+          <div class="results-header">
+            <div>
+              <h2>Generated Links</h2>
+              <p id="resultsSummary" class="muted"></p>
+            </div>
+            <button id="copyPage" class="secondary" type="button">Copy Page</button>
+          </div>
+          <div id="linkList" class="link-list"></div>
+          <div class="pagination">
+            <button id="prev" class="secondary" type="button">Previous</button>
+            <span id="pageLabel">Page 1</span>
+            <button id="next" class="secondary" type="button">Next</button>
           </div>
         </section>
-      </div>
-    </main>
-  </div>
+      </section>
+
+      <section id="presetsView" hidden>
+        <div class="heading">
+          <span class="eyebrow">LINK SERVICES</span>
+          <h1>Providers</h1>
+          <p>Available providers and special link formats.</p>
+        </div>
+        <div id="presetCards" class="preset-grid"></div>
+      </section>
+
+      <section id="aboutView" hidden>
+        <div class="heading">
+          <span class="eyebrow">ABOUT</span>
+          <h1>MonsterDrop</h1>
+        </div>
+        <div class="panel">
+          <h2>Galactic Aqua Link Generator</h2>
+          <p>MonsterDrop discovers files in public GitHub repositories and generates candidate links.</p>
+          <p>Some providers require npm packages or independently hosted files. Generated URLs are not automatically verified.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
 </body>
 </html>
