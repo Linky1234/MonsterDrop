@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Generate HTML and JavaScript links from URLs.">
+  <title>JS Link Maker</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><div class="container header-inner"><a class="brand" href="./">JS Link Maker</a><span class="header-note">Link generator</span></div></header>
+  <main class="container">
+    <section class="intro"><h1>Create a link</h1><p>Enter a web address and generate reusable HTML or JavaScript code.</p></section>
+    <section class="panel" aria-labelledby="form-heading">
+      <h2 id="form-heading">Link details</h2>
+      <form id="link-form" novalidate>
+        <label for="url">Website URL</label><input id="url" type="url" placeholder="https://example.com" required autocomplete="url">
+        <label for="label">Link text</label><input id="label" type="text" placeholder="Visit website" maxlength="120">
+        <label class="checkbox"><input id="new-tab" type="checkbox" checked> Open in a new tab</label>
+        <button type="submit" class="primary">Generate link</button>
+        <p id="error" class="error" role="alert" aria-live="polite"></p>
+      </form>
+    </section>
+    <section id="results" class="panel hidden" aria-labelledby="results-heading">
+      <h2 id="results-heading">Generated code</h2>
+      <div class="result-heading"><label for="html-output">HTML</label><button type="button" data-copy="html-output">Copy HTML</button></div>
+      <textarea id="html-output" rows="3" readonly spellcheck="false"></textarea>
+      <div class="result-heading"><label for="js-output">JavaScript</label><button type="button" data-copy="js-output">Copy JavaScript</button></div>
+      <textarea id="js-output" rows="3" readonly spellcheck="false"></textarea>
+      <h3>Preview</h3><div id="preview" class="preview"></div>
+      <p id="copy-status" class="status" aria-live="polite"></p>
+    </section>
+    <section class="panel" aria-labelledby="history-heading"><div class="result-heading"><h2 id="history-heading">Recent links</h2><button id="clear-history" type="button">Clear history</button></div><ul id="history" class="history"></ul></section>
+  </main>
+  <footer class="container footer">JS Link Maker · Static GitHub Pages edition</footer>
+</body>
+</html>
