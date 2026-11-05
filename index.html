@@ -1,7 +1,240 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b1027"><title>PotatoGen — Link Generator</title><link rel="stylesheet" href="style.css"></head>
-<body><header class="topbar"><div class="brand-small">🔗 <span>Link Generator</span></div><div class="top-right">LinkMaker V3 <span>⌄</span> &nbsp; Tools <span>⌄</span></div></header>
-<div class="layout"><aside class="sidebar"><div class="identity"><div class="potato">🥔</div><div><h1>PotatoGen</h1><p>100% No AI Link Generator - TRUST</p></div></div><nav aria-label="Main"><button class="nav active" data-view="generator">⌂ <span>Generator</span></button><button class="nav" data-view="presets">▦ <span>Presets</span></button><button class="nav" data-view="about">ⓘ <span>About</span></button></nav><div class="preset-list"><h3>Popular Presets</h3><div id="presetButtons"></div></div></aside>
-<main><section class="hero panel"><div class="diamond">◇</div><div class="hero-text"><h2>PotatoGen</h2><p>Generate CDN links for your UBG sites using SVGs! You can use<br class="desktop-only"> github.com/obamamegagon/linkmaker for some good SVGs.</p></div><div class="hero-pill">⚡ Up to 100,000,000 links</div></section>
-<section id="generatorView"><form id="generatorForm" class="panel form-panel"><div class="form-grid"><label>⌘ &nbsp;GitHub Path / Package<input id="repo" placeholder="username/repository or npm package" required autocomplete="off"></label><label>▱ &nbsp;File Path<input id="file" placeholder="index.html" value="index.html" required></label><label>⑂ &nbsp;Branch / Version<input id="branch" value="main" required></label><label># &nbsp;Number of Links <span class="hint">Max: 100M</span><input id="count" type="number" min="1" max="100000000" value="10" required></label><button class="primary" type="submit">▶ &nbsp;Generate Links</button><button class="secondary" id="clear" type="button">⟳ &nbsp;Clear</button></div><div id="formError" role="alert" class="error" hidden></div></form><div class="info panel">ⓘ Supports up to 100,000,000 links. Only 100,000 links are rendered per page to keep your browser responsive.</div><section class="results panel" id="results" hidden><div class="results-head"><div><h2>Generated Links</h2><p id="resultsSummary"></p></div><button id="copyPage" class="secondary small">Copy current page</button></div><div id="linkList" class="link-list"></div><div class="pager"><button id="prev" class="secondary small">← Previous</button><span id="pageLabel"></span><button id="next" class="secondary small">Next →</button></div></section></section>
-<section id="presetsView" class="panel subview" hidden><h2>CDN Presets</h2><p>Select a CDN below, then return to Generator. The selected CDN is used to construct your links.</p><div id="presetCards" class="preset-cards"></div></section><section id="aboutView" class="panel subview" hidden><h2>About PotatoGen</h2><p>PotatoGen creates numbered CDN URL variants from a GitHub repository or npm package. This is an independently built frontend inspired by the provided screenshot.</p><p>Generated links are URL variations, not guaranteed live or working resources. The tool does not upload, host, proxy, or verify files.</p></section></main></div><script src="app.js" defer></script></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101126">
+  <title>PotatoGen — CDN Link Generator</title>
+  <link rel="stylesheet" href="./style.css?v=61">
+  <script src="./app.js?v=61" defer></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🥔</div>
+        <div>
+          <h2>PotatoGen</h2>
+          <small>CDN Link Generator</small>
+        </div>
+      </div>
+
+      <nav>
+        <button class="nav active" data-view="generator">
+          ⚡ Generator
+        </button>
+        <button class="nav" data-view="presets">
+          📦 CDN Presets
+        </button>
+        <button class="nav" data-view="about">
+          ℹ️ About
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        PotatoGen V6.1
+        <br>GitHub Pages Edition
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <span>PotatoGen / Dashboard</span>
+        <span class="status">● Ready</span>
+      </header>
+
+      <div class="content">
+        <section id="generatorView">
+          <div class="heading">
+            <span class="eyebrow">LINK GENERATOR</span>
+            <h1>Generate CDN Links</h1>
+            <p>
+              Generate links for individual files or
+              automatically discover an entire public
+              GitHub repository.
+            </p>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <span>Maximum Candidates</span>
+              <strong>100M</strong>
+            </div>
+            <div class="stat">
+              <span>CDN Providers</span>
+              <strong>5</strong>
+            </div>
+            <div class="stat">
+              <span>Page Sizes</span>
+              <strong>100 / 1K</strong>
+            </div>
+          </div>
+
+          <form id="generatorForm" class="panel">
+            <div class="panel-title">
+              <h2>Generator Settings</h2>
+              <p>Configure your GitHub source and CDN.</p>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                Generation Mode
+                <select id="mode">
+                  <option value="repository">
+                    Entire Repository
+                  </option>
+                  <option value="file">
+                    Single File
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                CDN Provider
+                <select id="provider">
+                  <option value="all">
+                    All Providers
+                  </option>
+                  <option value="jsdelivr">
+                    jsDelivr
+                  </option>
+                  <option value="statically">
+                    Statically
+                  </option>
+                  <option value="githack">
+                    GitHack
+                  </option>
+                  <option value="raw">
+                    GitHub Raw
+                  </option>
+                  <option value="pages">
+                    GitHub Pages
+                  </option>
+                </select>
+              </label>
+
+              <label class="full">
+                GitHub Repository
+                <input
+                  id="repo"
+                  type="text"
+                  placeholder="username/repository or https://github.com/username/repository"
+                  required
+                >
+              </label>
+
+              <label>
+                Branch
+                <input
+                  id="branch"
+                  type="text"
+                  value="main"
+                  required
+                >
+              </label>
+
+              <label id="fileField" hidden>
+                File Path
+                <input
+                  id="file"
+                  type="text"
+                  placeholder="folder/index.html"
+                >
+              </label>
+
+              <label>
+                Links Per Page
+                <select id="pageSize">
+                  <option value="100">100 links</option>
+                  <option value="1000">1,000 links</option>
+                </select>
+              </label>
+
+              <label>
+                Maximum Links
+                <input
+                  id="limit"
+                  type="number"
+                  min="1"
+                  max="100000000"
+                  value="100000000"
+                >
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="primary" type="submit" id="generate">
+                ⚡ Generate Links
+              </button>
+              <button class="secondary" type="button" id="clear">
+                Clear
+              </button>
+            </div>
+
+            <div id="formError" class="error" role="alert" hidden></div>
+            <p id="scanStatus" class="muted" role="status"></p>
+          </form>
+
+          <section class="panel results" id="results" hidden>
+            <div class="results-header">
+              <div>
+                <h2>Generated Links</h2>
+                <p id="resultsSummary" class="muted"></p>
+              </div>
+              <button class="secondary" id="copyPage" type="button">
+                Copy Page
+              </button>
+            </div>
+
+            <div id="linkList" class="link-list"></div>
+
+            <div class="pagination">
+              <button class="secondary" id="prev" type="button">
+                Previous
+              </button>
+              <span id="pageLabel">Page 1</span>
+              <button class="secondary" id="next" type="button">
+                Next
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <section id="presetsView" hidden>
+          <div class="heading">
+            <span class="eyebrow">CDN PROVIDERS</span>
+            <h1>CDN Presets</h1>
+            <p>Choose a provider to use in the generator.</p>
+          </div>
+          <div id="presetCards" class="preset-grid"></div>
+        </section>
+
+        <section id="aboutView" hidden>
+          <div class="heading">
+            <span class="eyebrow">ABOUT</span>
+            <h1>About PotatoGen</h1>
+          </div>
+          <div class="panel">
+            <h2>GitHub CDN Link Generator</h2>
+            <p>
+              PotatoGen generates candidate CDN links for
+              files hosted in public GitHub repositories.
+            </p>
+            <p>
+              Repository mode retrieves file paths using
+              GitHub's public API. Links are not guaranteed
+              to work unless the underlying files and
+              provider endpoints are available.
+            </p>
+            <p>
+              Results are paginated to keep the interface
+              responsive.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
