@@ -27,7 +27,7 @@ const specialNames = [
   "HTML embed"
 ];
 
-const defaultProviders = new Set([
+const defaults = new Set([
   "cdn.jsdelivr.net",
   "raw.githack.com",
   "raw.githubusercontent.com"
@@ -51,6 +51,53 @@ let endingSettings = {
   seed: 0
 };
 
+let checkerResults = [];
+let checkerRun = 0;
+
+// ------------------------------------
+// NAVIGATION
+// ------------------------------------
+
+function setView(name) {
+  const views = [
+    "generator",
+    "presets",
+    "checker",
+    "about"
+  ];
+
+  for (const view of views) {
+    $(view + "View").hidden = view !== name;
+  }
+
+  document.querySelectorAll(".nav").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.view === name
+    );
+  });
+
+  const titles = {
+    generator: "Generator",
+    presets: "Providers",
+    checker: "URL Checker",
+    about: "About"
+  };
+
+  $("pageTitle").textContent =
+    "MonsterDrop / " + titles[name];
+}
+
+document.querySelectorAll(".nav").forEach(button => {
+  button.addEventListener("click", () => {
+    setView(button.dataset.view);
+  });
+});
+
+// ------------------------------------
+// GENERATOR CONTROLS
+// ------------------------------------
+
 function showError(message) {
   $("formError").textContent = message;
   $("formError").hidden = false;
@@ -65,41 +112,31 @@ function setStatus(message) {
   $("scanStatus").textContent = message;
 }
 
-function setView(name) {
-  for (const view of ["generator", "presets", "about"]) {
-    $(view + "View").hidden = view !== name;
-  }
-
-  document.querySelectorAll(".nav").forEach(button => {
-    button.classList.toggle(
-      "active",
-      button.dataset.view === name
-    );
-  });
-}
-
-document.querySelectorAll(".nav").forEach(button => {
-  button.addEventListener("click", () => {
-    setView(button.dataset.view);
-  });
-});
-
 function updateMode() {
-  $("fileField").hidden = $("mode").value !== "file";
+  $("fileField").hidden =
+    $("mode").value !== "file";
 }
 
-$("mode").addEventListener("change", updateMode);
+$("mode").addEventListener(
+  "change",
+  updateMode
+);
 
 function updateEndingFields() {
   const mode = $("endingMode").value;
 
-  $("customEndingField").hidden = mode !== "custom";
-  $("startNumberField").hidden = mode !== "sequential";
+  $("customEndingField").hidden =
+    mode !== "custom";
+
+  $("startNumberField").hidden =
+    mode !== "sequential";
 
   $("endingCountField").hidden =
-    mode !== "sequential" && mode !== "random";
+    mode !== "sequential" &&
+    mode !== "random";
 
-  $("randomDigitsField").hidden = mode !== "random";
+  $("randomDigitsField").hidden =
+    mode !== "random";
 }
 
 $("endingMode").addEventListener(
@@ -115,7 +152,7 @@ function readEndingSettings() {
   const digits = Number($("randomDigits").value);
 
   if (!["none", "custom", "sequential", "random"]
-    .includes(mode)) {
+      .includes(mode)) {
     throw new Error("Invalid ending mode.");
   }
 
@@ -124,9 +161,9 @@ function readEndingSettings() {
     (
       !custom ||
       custom.includes("/") ||
+      custom.includes("\\") ||
       custom === "." ||
-      custom === ".." ||
-      custom.includes("\\")
+      custom === ".."
     )
   ) {
     throw new Error(
@@ -135,7 +172,7 @@ function readEndingSettings() {
   }
 
   if (
-    (mode === "sequential" || mode === "random") &&
+    ["sequential", "random"].includes(mode) &&
     (
       !Number.isSafeInteger(count) ||
       count < 1 ||
@@ -156,7 +193,7 @@ function readEndingSettings() {
     )
   ) {
     throw new Error(
-      "Invalid starting number or ending count."
+      "Invalid sequential number range."
     );
   }
 
@@ -165,17 +202,12 @@ function readEndingSettings() {
     (
       !Number.isSafeInteger(digits) ||
       digits < 1 ||
-      digits > 12
+      digits > 12 ||
+      count > 10 ** digits
     )
   ) {
     throw new Error(
-      "Random digits must be between 1 and 12."
-    );
-  }
-
-  if (mode === "random" && count > 10 ** digits) {
-    throw new Error(
-      "Too many unique endings for the selected digits."
+      "Invalid random digits or count."
     );
   }
 
@@ -183,10 +215,9 @@ function readEndingSettings() {
     mode,
     custom,
     start,
-    count:
-      mode === "sequential" || mode === "random"
-        ? count
-        : 1,
+    count: ["sequential", "random"].includes(mode)
+      ? count
+      : 1,
     digits,
     seed: Math.floor(Math.random() * 1000000)
   };
@@ -204,17 +235,17 @@ function endingAt(index) {
   }
 
   if (endingSettings.mode === "sequential") {
-    return "/" + String(
+    return "/" + (
       endingSettings.start + index
     );
   }
 
-  // Stable, unique numeric values for each ending index.
-  // The sequence changes when Generate is clicked again.
   const modulus = 10 ** endingSettings.digits;
-  const multiplier = 7919;
+
+  // A coprime multiplier makes the sequence
+  // unique within its numeric range.
   const value = (
-    index * multiplier + endingSettings.seed
+    index * 7919 + endingSettings.seed
   ) % modulus;
 
   return "/" + String(value).padStart(
@@ -223,49 +254,9 @@ function endingAt(index) {
   );
 }
 
-function createOption(name, special = false) {
-  const label = document.createElement("label");
-  label.className = "provider-option";
-
-  const checkbox = document.createElement("input");
-  checkbox.type = "checkbox";
-  checkbox.value = name;
-  checkbox.dataset.special = String(special);
-  checkbox.checked = defaultProviders.has(name);
-
-  const text = document.createElement("span");
-  text.textContent = name;
-
-  function update() {
-    label.classList.toggle(
-      "selected",
-      checkbox.checked
-    );
-    updateExtras();
-  }
-
-  checkbox.addEventListener("change", update);
-
-  label.append(checkbox, text);
-  label.classList.toggle(
-    "selected",
-    checkbox.checked
-  );
-
-  return label;
-}
-
-function renderOptions() {
-  $("providerGrid").replaceChildren(
-    ...providerNames.map(name => createOption(name))
-  );
-
-  $("specialGrid").replaceChildren(
-    ...specialNames.map(name => createOption(name, true))
-  );
-
-  updateExtras();
-}
+// ------------------------------------
+// PROVIDERS
+// ------------------------------------
 
 function selectedNames() {
   return Array.from(
@@ -279,7 +270,8 @@ function selectedNames() {
 function updateExtras() {
   const selected = selectedNames();
 
-  const npm = selected.includes("unpkg.com") ||
+  const npm =
+    selected.includes("unpkg.com") ||
     selected.includes("esm.sh");
 
   const s3 = selected.includes("Amazon S3");
@@ -289,15 +281,59 @@ function updateExtras() {
   $("s3Field").hidden = !s3;
   $("surgeField").hidden = !surge;
 
-  $("extraFields").hidden = !(npm || s3 || surge);
+  $("extraFields").hidden =
+    !(npm || s3 || surge);
 }
 
-function setProviderSelection(checked) {
+function createOption(name) {
+  const label = document.createElement("label");
+  label.className = "provider-option";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.value = name;
+  checkbox.checked = defaults.has(name);
+
+  const span = document.createElement("span");
+  span.textContent = name;
+
+  function update() {
+    label.classList.toggle(
+      "selected",
+      checkbox.checked
+    );
+
+    updateExtras();
+  }
+
+  checkbox.addEventListener("change", update);
+
+  label.append(checkbox, span);
+  label.classList.toggle(
+    "selected",
+    checkbox.checked
+  );
+
+  return label;
+}
+
+function renderOptions() {
+  $("providerGrid").replaceChildren(
+    ...providerNames.map(createOption)
+  );
+
+  $("specialGrid").replaceChildren(
+    ...specialNames.map(createOption)
+  );
+
+  updateExtras();
+}
+
+function selectProviders(checked) {
   document.querySelectorAll(
     "#providerGrid input"
   ).forEach(input => {
     input.checked = checked;
-
     input.closest(".provider-option")
       .classList.toggle("selected", checked);
   });
@@ -306,12 +342,16 @@ function setProviderSelection(checked) {
 }
 
 $("selectAll").addEventListener("click", () => {
-  setProviderSelection(true);
+  selectProviders(true);
 });
 
 $("clearProviders").addEventListener("click", () => {
-  setProviderSelection(false);
+  selectProviders(false);
 });
+
+// ------------------------------------
+// GITHUB REPOSITORY SCANNING
+// ------------------------------------
 
 function parseRepository(value) {
   let input = value.trim();
@@ -327,11 +367,11 @@ function parseRepository(value) {
 
   if (
     parts.length !== 2 ||
-    !/^[a-zA-Z0-9-]+$/.test(parts[0]) ||
-    !/^[a-zA-Z0-9._-]+$/.test(parts[1])
+    !/^[a-z0-9-]+$/i.test(parts[0]) ||
+    !/^[a-z0-9._-]+$/i.test(parts[1])
   ) {
     throw new Error(
-      "Enter a valid GitHub repository URL or owner/repo."
+      "Enter a valid GitHub owner/repository."
     );
   }
 
@@ -350,13 +390,13 @@ function validateBranch(branch) {
     branch.includes("\\") ||
     /[\s~^:?*[\]]/.test(branch)
   ) {
-    throw new Error("Enter a valid Git branch.");
+    throw new Error("Enter a valid branch.");
   }
 }
 
 function encodePath(path) {
   return path.split("/")
-    .map(part => encodeURIComponent(part))
+    .map(encodeURIComponent)
     .join("/");
 }
 
@@ -376,10 +416,12 @@ async function scanRepository(owner, repo, branch) {
   });
 
   if (!response.ok) {
-    if (response.status === 403 ||
-        response.status === 429) {
+    if (
+      response.status === 403 ||
+      response.status === 429
+    ) {
       throw new Error(
-        "GitHub API rate limit reached or access denied."
+        "GitHub API rate limit reached."
       );
     }
 
@@ -390,7 +432,7 @@ async function scanRepository(owner, repo, branch) {
     }
 
     throw new Error(
-      `GitHub API returned ${response.status}.`
+      "GitHub API error: " + response.status
     );
   }
 
@@ -398,12 +440,14 @@ async function scanRepository(owner, repo, branch) {
 
   if (data.truncated) {
     throw new Error(
-      "GitHub returned an incomplete repository tree."
+      "Repository tree is too large for a complete scan."
     );
   }
 
   if (!Array.isArray(data.tree)) {
-    throw new Error("Invalid GitHub API response.");
+    throw new Error(
+      "GitHub returned an invalid file tree."
+    );
   }
 
   return data.tree
@@ -411,44 +455,9 @@ async function scanRepository(owner, repo, branch) {
     .map(item => item.path);
 }
 
-function validateNpmPackage(value) {
-  if (!value) return "";
-
-  if (
-    !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:@[a-zA-Z0-9._+-]+)?$/i
-      .test(value)
-  ) {
-    throw new Error(
-      "Enter a valid npm package, such as react@18.2.0."
-    );
-  }
-
-  return value;
-}
-
-function validateDomain(value) {
-  const domain = value.trim().toLowerCase();
-
-  if (
-    !/^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(domain)
-  ) {
-    throw new Error("Enter a valid Surge domain.");
-  }
-
-  return domain;
-}
-
-function validateBucket(value) {
-  const bucket = value.trim();
-
-  if (
-    !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket)
-  ) {
-    throw new Error("Enter a valid S3 bucket name.");
-  }
-
-  return bucket;
-}
+// ------------------------------------
+// LINK GENERATION
+// ------------------------------------
 
 function buildLink(provider, file) {
   const owner = encodeURIComponent(repoInfo.owner);
@@ -504,7 +513,7 @@ function buildLink(provider, file) {
     return `https://raw.githack.com/${rawPath}`;
   }
 
-  throw new Error(`Unknown provider: ${provider}`);
+  throw new Error("Unknown provider: " + provider);
 }
 
 function totalLinks() {
@@ -517,31 +526,27 @@ function totalLinks() {
 }
 
 function getLinkAt(index) {
-  const endingsPerProvider = endingSettings.count;
-  const providerCount = activeProviders.length;
-
-  const combinationsPerFile =
-    providerCount * endingsPerProvider;
+  const endings = endingSettings.count;
+  const providers = activeProviders.length;
+  const combinations = endings * providers;
 
   const fileIndex = Math.floor(
-    index / combinationsPerFile
+    index / combinations
   );
 
-  const remaining = index % combinationsPerFile;
-
+  const remainder = index % combinations;
   const providerIndex = Math.floor(
-    remaining / endingsPerProvider
+    remainder / endings
   );
 
-  const endingIndex =
-    remaining % endingsPerProvider;
+  const endingIndex = remainder % endings;
 
   const file = files[fileIndex];
   const provider = activeProviders[providerIndex];
 
-  const base = buildLink(provider, file);
-  const suffix = endingAt(endingIndex);
-  const url = base + suffix;
+  const url =
+    buildLink(provider, file) +
+    endingAt(endingIndex);
 
   if (provider === "HTML embed") {
     const escaped = url
@@ -559,11 +564,7 @@ function getLinkAt(index) {
     };
   }
 
-  return {
-    file,
-    provider,
-    url
-  };
+  return { file, provider, url };
 }
 
 function renderPage() {
@@ -575,17 +576,10 @@ function renderPage() {
   }
 
   const pages = Math.ceil(total / pageSize);
-
-  currentPage = Math.min(
-    currentPage,
-    pages - 1
-  );
+  currentPage = Math.min(currentPage, pages - 1);
 
   const start = currentPage * pageSize;
-  const end = Math.min(
-    start + pageSize,
-    total
-  );
+  const end = Math.min(start + pageSize, total);
 
   $("results").hidden = false;
 
@@ -594,8 +588,7 @@ function renderPage() {
     `${files.length.toLocaleString()} files`;
 
   $("pageLabel").textContent =
-    `Page ${(currentPage + 1).toLocaleString()} ` +
-    `of ${pages.toLocaleString()}`;
+    `Page ${currentPage + 1} of ${pages}`;
 
   $("prev").disabled = currentPage === 0;
   $("next").disabled = currentPage >= pages - 1;
@@ -690,61 +683,69 @@ $("generatorForm").addEventListener(
         );
       }
 
-      const nextEndingSettings =
-        readEndingSettings();
+      const nextEnding = readEndingSettings();
 
-      const npmRequired = selected.some(
-        name =>
-          name === "unpkg.com" ||
-          name === "esm.sh"
-      );
+      const npmRequired =
+        selected.includes("unpkg.com") ||
+        selected.includes("esm.sh");
 
-      const npmValue =
-        $("npmPackage").value.trim();
+      const npm = $("npmPackage").value.trim();
 
-      const nextOptions = {
-        npm: npmRequired
-          ? validateNpmPackage(npmValue)
-          : "",
-        s3: selected.includes("Amazon S3")
-          ? validateBucket($("s3Bucket").value)
-          : "",
-        surge: selected.includes("Surge-style")
-          ? validateDomain($("surgeDomain").value)
-          : ""
-      };
-
-      if (npmRequired && !nextOptions.npm) {
+      if (npmRequired && !npm) {
         throw new Error(
-          "Enter an npm package for unpkg.com or esm.sh."
+          "Enter an npm package and version."
         );
       }
 
+      if (
+        npmRequired &&
+        !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+(?:@[a-z0-9._+-]+)?$/i
+          .test(npm)
+      ) {
+        throw new Error("Invalid npm package.");
+      }
+
+      const nextOptions = {
+        npm,
+        s3: $("s3Bucket").value.trim(),
+        surge: $("surgeDomain").value.trim()
+      };
+
+      if (
+        selected.includes("Amazon S3") &&
+        !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/
+          .test(nextOptions.s3)
+      ) {
+        throw new Error("Invalid S3 bucket.");
+      }
+
+      if (
+        selected.includes("Surge-style") &&
+        !/^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i
+          .test(nextOptions.surge)
+      ) {
+        throw new Error("Invalid Surge domain.");
+      }
+
       const limit = Number($("limit").value);
+      const size = Number($("pageSize").value);
 
       if (
         !Number.isSafeInteger(limit) ||
         limit < 1 ||
         limit > MAX_LINKS
       ) {
-        throw new Error(
-          "Maximum links must be between 1 and 100,000,000."
-        );
+        throw new Error("Invalid maximum links.");
       }
 
-      const requestedPageSize =
-        Number($("pageSize").value);
-
-      if (![100, 1000].includes(requestedPageSize)) {
+      if (![100, 1000].includes(size)) {
         throw new Error("Invalid page size.");
       }
 
       let discoveredFiles;
 
       if ($("mode").value === "repository") {
-        setStatus(
-          "Retrieving GitHub repository files..."
-        );
+        setStatus("Scanning public repository...");
 
         discoveredFiles = await scanRepository(
           parsed.owner,
@@ -761,17 +762,13 @@ $("generatorForm").addEventListener(
           path.includes("\\") ||
           path.endsWith("/")
         ) {
-          throw new Error(
-            "Enter a valid file path."
-          );
+          throw new Error("Invalid file path.");
         }
 
         discoveredFiles = [path];
       }
 
-      if (requestId !== generationId) {
-        return;
-      }
+      if (requestId !== generationId) return;
 
       if (!discoveredFiles.length) {
         throw new Error("No files found.");
@@ -781,9 +778,9 @@ $("generatorForm").addEventListener(
       activeProviders = selected;
       repoInfo = { ...parsed, branch };
       options = nextOptions;
-      endingSettings = nextEndingSettings;
+      endingSettings = nextEnding;
       maxLinks = limit;
-      pageSize = requestedPageSize;
+      pageSize = size;
       currentPage = 0;
 
       renderPage();
@@ -792,6 +789,7 @@ $("generatorForm").addEventListener(
         `Found ${files.length.toLocaleString()} files. ` +
         `${totalLinks().toLocaleString()} candidate links.`
       );
+
     } catch (error) {
       if (requestId === generationId) {
         showError(error.message);
@@ -814,10 +812,7 @@ $("prev").addEventListener("click", () => {
 });
 
 $("next").addEventListener("click", () => {
-  if (
-    (currentPage + 1) * pageSize <
-    totalLinks()
-  ) {
+  if ((currentPage + 1) * pageSize < totalLinks()) {
     currentPage++;
     renderPage();
   }
@@ -841,7 +836,6 @@ $("copyPage").addEventListener("click", () => {
 
 $("clear").addEventListener("click", () => {
   generationId++;
-
   $("generatorForm").reset();
 
   files = [];
@@ -867,7 +861,6 @@ $("clear").addEventListener("click", () => {
 
   clearError();
   setStatus("");
-
   renderOptions();
   updateMode();
   updateEndingFields();
@@ -919,7 +912,246 @@ function renderPresets() {
   container.replaceChildren(fragment);
 }
 
+// ------------------------------------
+// URL CHECKER
+// ------------------------------------
+
+function parseCheckUrl(value) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new Error("Empty URL");
+  }
+
+  let url;
+
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error("Invalid URL format");
+  }
+
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Only HTTP and HTTPS are supported");
+  }
+
+  if (!url.hostname || url.username || url.password) {
+    throw new Error("Invalid or unsupported URL");
+  }
+
+  return url.href;
+}
+
+async function diagnoseUrl(url) {
+  // A browser cannot reliably check arbitrary
+  // cross-origin URLs without CORS permission.
+  const controller = new AbortController();
+
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 7000);
+
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      mode: "cors",
+      credentials: "omit",
+      redirect: "follow",
+      signal: controller.signal
+    });
+
+    if (response.ok) {
+      return {
+        status: "Reachable",
+        detail: `HTTP ${response.status}`
+      };
+    }
+
+    if (
+      response.status === 405 ||
+      response.status === 501
+    ) {
+      return {
+        status: "Inconclusive",
+        detail: "Server does not support HEAD requests"
+      };
+    }
+
+    return {
+      status: "HTTP Error",
+      detail: `HTTP ${response.status}`
+    };
+
+  } catch (error) {
+    return {
+      status: "Inconclusive",
+      detail:
+        error.name === "AbortError"
+          ? "Request timed out"
+          : "Browser blocked request or network failed"
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function renderCheckerResults() {
+  const container = $("checkerList");
+  const fragment = document.createDocumentFragment();
+
+  for (const item of checkerResults) {
+    const row = document.createElement("div");
+    row.className = "link-item";
+
+    const info = document.createElement("div");
+    info.className = "link-info";
+
+    const status = document.createElement("small");
+    status.textContent =
+      `${item.status} — ${item.detail}`;
+
+    if (item.status === "Reachable") {
+      status.style.color = "#38e4d2";
+    } else if (
+      item.status === "Invalid" ||
+      item.status === "HTTP Error"
+    ) {
+      status.style.color = "#ff9db1";
+    } else {
+      status.style.color = "#91b2c1";
+    }
+
+    const link = document.createElement("a");
+    link.textContent = item.url;
+
+    if (item.status !== "Invalid") {
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    }
+
+    info.append(status, link);
+    row.append(info);
+    fragment.append(row);
+  }
+
+  container.replaceChildren(fragment);
+
+  $("checkerResults").hidden =
+    checkerResults.length === 0;
+
+  const reachable = checkerResults.filter(
+    item => item.status === "Reachable"
+  ).length;
+
+  $("checkerSummary").textContent =
+    `${checkerResults.length} checked · ` +
+    `${reachable} confirmed reachable`;
+}
+
+$("checkUrls").addEventListener("click", async () => {
+  const run = ++checkerRun;
+
+  const lines = $("checkerInput").value
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    $("checkerStatus").textContent =
+      "Enter at least one URL.";
+    return;
+  }
+
+  if (lines.length > 100) {
+    $("checkerStatus").textContent =
+      "Maximum 100 URLs per check.";
+    return;
+  }
+
+  checkerResults = [];
+  $("checkerResults").hidden = true;
+
+  const button = $("checkUrls");
+  button.disabled = true;
+  button.textContent = "Checking...";
+
+  try {
+    for (let i = 0; i < lines.length; i++) {
+      if (run !== checkerRun) return;
+
+      const original = lines[i];
+
+      $("checkerStatus").textContent =
+        `Checking ${i + 1} of ${lines.length}...`;
+
+      let url;
+
+      try {
+        url = parseCheckUrl(original);
+      } catch (error) {
+        checkerResults.push({
+          url: original,
+          status: "Invalid",
+          detail: error.message
+        });
+        continue;
+      }
+
+      const result = await diagnoseUrl(url);
+
+      if (run !== checkerRun) return;
+
+      checkerResults.push({
+        url,
+        ...result
+      });
+    }
+
+    renderCheckerResults();
+
+    $("checkerStatus").textContent =
+      "Checks complete. Inconclusive does not mean blocked.";
+
+  } finally {
+    if (run === checkerRun) {
+      button.disabled = false;
+      button.textContent = "◉ Check URLs";
+    }
+  }
+});
+
+$("clearChecker").addEventListener("click", () => {
+  checkerRun++;
+
+  $("checkerInput").value = "";
+  checkerResults = [];
+
+  $("checkerResults").hidden = true;
+  $("checkerList").replaceChildren();
+  $("checkerStatus").textContent = "";
+
+  $("checkUrls").disabled = false;
+  $("checkUrls").textContent = "◉ Check URLs";
+});
+
+$("copyCheckerResults").addEventListener(
+  "click",
+  () => {
+    const text = checkerResults.map(item =>
+      `${item.url}\t${item.status}\t${item.detail}`
+    ).join("\n");
+
+    copyText(text, $("copyCheckerResults"));
+  }
+);
+
+// ------------------------------------
+// INITIALIZATION
+// ------------------------------------
+
 renderOptions();
 renderPresets();
 updateMode();
 updateEndingFields();
+setView("generator");
