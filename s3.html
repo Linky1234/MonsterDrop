@@ -3,12 +3,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#081824">
-<title>MonsterDrop / S3 HTML Generator</title>
+<title>MonsterDrop / HTML SVG Converter</title>
 <link rel="stylesheet" href="./style.css?v=65">
 <style>
-.s3-nav {
+.converter-nav {
   display:block;
   width:100%;
   min-height:55px;
@@ -20,29 +20,78 @@
   text-decoration:none;
   font-size:16px;
 }
-.s3-nav:hover { background:#102d3c; }
-.s3-nav.active {
+.converter-nav:hover { background:#102d3c; }
+.converter-nav.active {
   color:#38e4d2;
   background:#103c4b;
   border-color:#217c85;
 }
-.s3-result {
-  overflow-wrap:anywhere;
-  color:#38e4d2;
+.converter-tabs {
+  display:flex;
+  gap:12px;
+  margin-bottom:22px;
+  flex-wrap:wrap;
 }
-.s3-note {
+.converter-tabs button.active {
+  background:#38e4d2;
+  border-color:#38e4d2;
+  color:#06232b;
+}
+.converter-label {
+  display:block;
+  color:#c6e9f2;
+  margin-bottom:9px;
+  font-size:14px;
+}
+.converter-editor {
+  display:block;
+  width:100%;
+  min-height:270px;
+  padding:15px;
+  background:#081a2a;
+  color:#e8fcff;
+  border:1px solid #254557;
+  border-radius:10px;
+  resize:vertical;
+  font-family:Consolas,monospace;
+  font-size:13px;
+  line-height:1.6;
+}
+.converter-preview {
+  width:100%;
+  height:340px;
+  background:white;
+  border:1px solid #254557;
+  border-radius:10px;
+}
+.converter-note {
+  margin-top:16px;
   padding:14px;
+  background:#081a2a;
   border:1px solid #254557;
   border-radius:9px;
-  background:#081a2a;
   color:#91b2c1;
   line-height:1.6;
 }
-.s3-result-actions {
+.converter-actions {
   display:flex;
   flex-wrap:wrap;
   gap:12px;
   margin-top:18px;
+}
+.converter-status {
+  min-height:24px;
+  margin-top:14px;
+  color:#91b2c1;
+}
+.converter-settings {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:16px;
+  margin-top:18px;
+}
+@media(max-width:700px) {
+  .converter-settings { grid-template-columns:1fr; }
 }
 </style>
 </head>
@@ -57,88 +106,112 @@
     </div>
   </div>
   <nav>
-    <a class="s3-nav" href="./index.html">✦ Generator</a>
-    <a class="s3-nav" href="./index.html#presets">◈ Providers</a>
-    <a class="s3-nav" href="./index.html#checker">◉ URL Checker</a>
-    <a class="s3-nav active" href="./s3.html">☁ S3 HTML Generator</a>
-    <a class="s3-nav" href="./index.html#about">ⓘ About</a>
+    <a class="converter-nav" href="./index.html">✦ Generator</a>
+    <a class="converter-nav" href="./index.html#presets">◈ Providers</a>
+    <a class="converter-nav" href="./index.html#checker">◉ URL Checker</a>
+    <a class="converter-nav active" href="./s3.html">⇄ HTML ↔ SVG Converter</a>
+    <a class="converter-nav" href="./index.html#about">ⓘ About</a>
   </nav>
-  <div class="sidebar-bottom">MonsterDrop V6.5</div>
+  <div class="sidebar-bottom">MonsterDrop V6.6</div>
 </aside>
 
 <main class="main">
 <header class="topbar">
-  <span>MonsterDrop / S3 HTML Generator</span>
+  <span>MonsterDrop / HTML ↔ SVG Converter</span>
   <span class="status">● Ready</span>
 </header>
+
 <div class="content">
   <div class="heading">
-    <span class="eyebrow">AMAZON S3 PROVIDER</span>
-    <h1>S3 HTML Generator</h1>
-    <p>
-      Generate Amazon S3 candidate URLs for HTML files.
-      Optionally verify that the source file exists
-      in a public GitHub repository.
-    </p>
+    <span class="eyebrow">FILE CONVERSION</span>
+    <h1>HTML ↔ SVG Converter</h1>
+    <p>Convert HTML and SVG files directly in your browser.</p>
   </div>
 
-  <form id="s3Form" class="panel">
-    <h2>Generator Settings</h2>
-    <div class="form-grid">
-      <label class="full">GitHub Repository
-        <input id="repository"
-               placeholder="Linky1234/MonsterDrop" required>
+  <section class="panel">
+    <h2>Conversion Mode</h2>
+    <div class="converter-tabs">
+      <button id="htmlMode" class="secondary active"
+              type="button">HTML → SVG</button>
+      <button id="svgMode" class="secondary"
+              type="button">SVG → HTML</button>
+    </div>
+
+    <label class="converter-label" for="fileInput">
+      Upload a file (optional)
+    </label>
+    <input id="fileInput" type="file" accept=".html,.htm,.svg,text/html,image/svg+xml">
+
+    <div class="converter-settings">
+      <label>Output Width
+        <input id="outputWidth" type="number" min="1" max="8192" value="1280">
       </label>
-      <label>Branch
-        <input id="branch" value="main" required>
-      </label>
-      <label>HTML File Path
-        <input id="filePath"
-               placeholder="folder/index.html" required>
-      </label>
-      <label class="full">Public Amazon S3 Bucket
-        <input id="bucket"
-               placeholder="my-public-bucket" required>
+      <label>Output Height
+        <input id="outputHeight" type="number" min="1" max="8192" value="720">
       </label>
     </div>
 
-    <div class="actions">
-      <button type="submit" class="primary">
-        ☁ Generate S3 Link
+    <div style="margin-top:22px">
+      <label class="converter-label" for="sourceCode">Input Code</label>
+      <textarea id="sourceCode" class="converter-editor"
+        spellcheck="false"
+        placeholder="Paste your HTML or SVG code here..."></textarea>
+    </div>
+
+    <div class="converter-actions">
+      <button id="convertBtn" class="primary" type="button">
+        ⇄ Convert
       </button>
-      <button id="clear" type="button" class="secondary">
+      <button id="clearBtn" class="secondary" type="button">
         Clear
       </button>
     </div>
-    <p id="message" class="muted" role="status"></p>
-  </form>
-
-  <section id="result" class="panel" hidden>
-    <h2>Generated S3 Link</h2>
-    <p class="muted">Candidate URL</p>
-    <a id="generatedUrl" class="s3-result"
-       href="#" target="_blank" rel="noopener noreferrer"></a>
-    <div class="s3-result-actions">
-      <button id="copy" class="secondary" type="button">
-        Copy URL
-      </button>
-      <button id="open" class="primary" type="button">
-        Open in New Tab
-      </button>
-    </div>
-    <p id="githubStatus" class="muted"></p>
+    <p id="status" class="converter-status" role="status"></p>
   </section>
 
-  <div class="panel">
-    <h2>How Amazon S3 Links Work</h2>
-    <div class="s3-note">
-      This generator uses MonsterDrop's Amazon S3 URL format:
-      <strong>https://BUCKET.s3.amazonaws.com/PATH</strong>.
-      It does not upload or copy files from GitHub to Amazon S3.
-      The object must already exist in the specified bucket
-      and be publicly accessible.
+  <section id="resultPanel" class="panel" hidden>
+    <h2>Converted Output</h2>
+    <label class="converter-label" for="outputCode">Generated Code</label>
+    <textarea id="outputCode" class="converter-editor"
+              readonly spellcheck="false"></textarea>
+
+    <div class="converter-actions">
+      <button id="copyBtn" class="secondary" type="button">
+        Copy Code
+      </button>
+      <button id="downloadBtn" class="primary" type="button">
+        Download File
+      </button>
     </div>
-  </div>
+  </section>
+
+  <section id="previewPanel" class="panel" hidden>
+    <h2>Preview</h2>
+    <iframe id="previewFrame" class="converter-preview"
+      sandbox="" title="Converted file preview"></iframe>
+    <p class="muted">
+      Preview uses a restricted iframe. Scripts, network resources,
+      and some SVG features may not work.
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>How Conversion Works</h2>
+    <div class="converter-note">
+      <strong>HTML → SVG:</strong> Places HTML inside an SVG
+      foreignObject. It is a wrapper, not a pixel-perfect vector
+      conversion.
+      <p>
+        <strong>SVG → HTML:</strong> Embeds the SVG markup inside
+        a complete HTML document.
+      </p>
+      <p>
+        Both conversions are performed locally. External CSS,
+        images, scripts, and relative file paths are not bundled.
+        Some SVG viewers will not display embedded HTML.
+      </p>
+    </div>
+  </section>
 </div>
 </main>
 </div>
@@ -146,138 +219,255 @@
 <script>
 "use strict";
 
-const form = document.getElementById("s3Form");
-const result = document.getElementById("result");
-const message = document.getElementById("message");
-const githubStatus = document.getElementById("githubStatus");
-const generatedUrl = document.getElementById("generatedUrl");
+const $ = id => document.getElementById(id);
 
-let currentUrl = "";
+let mode = "html";
+let outputText = "";
+let outputExtension = "svg";
 
-function parseRepository(value) {
-  const cleaned = value.trim()
-    .replace(/^https?:\/\/github\.com\//i, "")
-    .replace(/\/+$/, "");
+function setStatus(text, error = false) {
+  $("status").textContent = text;
+  $("status").style.color = error ? "#ff9db1" : "#91b2c1";
+}
 
-  const parts = cleaned.split("/");
-  if (
-    parts.length !== 2 ||
-    !/^[a-z0-9-]+$/i.test(parts[0]) ||
-    !/^[a-z0-9._-]+$/i.test(parts[1])
-  ) {
-    throw new Error("Enter a valid GitHub repository.");
+function setMode(nextMode) {
+  mode = nextMode;
+  $("htmlMode").classList.toggle("active", mode === "html");
+  $("svgMode").classList.toggle("active", mode === "svg");
+  $("fileInput").value = "";
+  $("fileInput").accept = mode === "html"
+    ? ".html,.htm,text/html"
+    : ".svg,image/svg+xml";
+  $("sourceCode").value = "";
+  $("resultPanel").hidden = true;
+  $("previewPanel").hidden = true;
+  $("previewFrame").removeAttribute("srcdoc");
+  outputText = "";
+  setStatus("");
+}
+
+function getDimensions() {
+  const width = Number($("outputWidth").value);
+  const height = Number($("outputHeight").value);
+
+  if (!Number.isInteger(width) || width < 1 || width > 8192 ||
+      !Number.isInteger(height) || height < 1 || height > 8192) {
+    throw new Error("Width and height must be between 1 and 8192.");
   }
-  return parts;
+  return { width, height };
 }
 
-function validatePath(value) {
-  const path = value.trim().replace(/^\/+/, "");
-  if (
-    !path ||
-    path.includes("\\") ||
-    path.split("/").some(part => !part || part === "." || part === "..") ||
-    !/\.html?$/i.test(path)
-  ) {
-    throw new Error("Enter a valid .html or .htm file path.");
-  }
-  return path;
+function escapeXmlAttribute(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
 }
 
-function encodePath(path) {
-  return path.split("/").map(encodeURIComponent).join("/");
-}
+function htmlToSvg(source, width, height) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(source, "text/html");
 
-form.addEventListener("submit", async event => {
-  event.preventDefault();
-  result.hidden = true;
-  message.textContent = "";
+  // Serialize the body into XML-compatible markup.
+  // Scripts are removed because this converter does not
+  // package executable web applications.
+  doc.querySelectorAll(
+    "script, iframe, object, embed, base, meta[http-equiv='refresh']"
+  ).forEach(element => element.remove());
 
-  try {
-    const [owner, repo] = parseRepository(
-      document.getElementById("repository").value
-    );
-    const branch = document.getElementById("branch").value.trim();
-    const path = validatePath(
-      document.getElementById("filePath").value
-    );
-    const bucket = document.getElementById("bucket").value.trim();
-
-    if (!branch || branch.includes("..") || /[\s\\]/.test(branch)) {
-      throw new Error("Enter a valid GitHub branch.");
-    }
-    if (
-      !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) ||
-      bucket.includes("..") ||
-      /^\d+\.\d+\.\d+\.\d+$/.test(bucket)
-    ) {
-      throw new Error("Enter a valid S3 bucket name.");
-    }
-
-    currentUrl =
-      "https://" + bucket + ".s3.amazonaws.com/" + encodePath(path);
-
-    generatedUrl.href = currentUrl;
-    generatedUrl.textContent = currentUrl;
-    result.hidden = false;
-    message.textContent = "Candidate S3 link generated.";
-    githubStatus.textContent = "Checking GitHub source file...";
-
-    const githubApi =
-      "https://api.github.com/repos/" +
-      encodeURIComponent(owner) + "/" +
-      encodeURIComponent(repo) + "/contents/" +
-      encodePath(path) + "?ref=" + encodeURIComponent(branch);
-
-    try {
-      const response = await fetch(githubApi, {
-        headers: { Accept: "application/vnd.github+json" }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        githubStatus.textContent =
-          data.type === "file"
-            ? "GitHub source file found. S3 availability is not verified."
-            : "GitHub path is not a file.";
-      } else if (response.status === 404) {
-        githubStatus.textContent =
-          "GitHub file not found. S3 availability is not verified.";
-      } else {
-        githubStatus.textContent =
-          "GitHub verification unavailable (HTTP " +
-          response.status + "). S3 availability is not verified.";
+  doc.querySelectorAll("*").forEach(element => {
+    for (const attr of [...element.attributes]) {
+      if (/^on/i.test(attr.name)) {
+        element.removeAttribute(attr.name);
       }
-    } catch {
-      githubStatus.textContent =
-        "GitHub verification unavailable. S3 availability is not verified.";
     }
-  } catch (error) {
-    message.textContent = error.message;
-  }
-});
+  });
 
-document.getElementById("copy").addEventListener("click", async () => {
-  if (!currentUrl) return;
+  const serializer = new XMLSerializer();
+  const bodyMarkup = [...doc.body.childNodes]
+    .map(node => serializer.serializeToString(node))
+    .join("\n");
+
+  const styles = [...doc.querySelectorAll("style")]
+    .map(node => serializer.serializeToString(node))
+    .join("\n");
+
+  const safeWidth = escapeXmlAttribute(width);
+  const safeHeight = escapeXmlAttribute(height);
+
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg"',
+    '     xmlns:xhtml="http://www.w3.org/1999/xhtml"',
+    '     width="' + safeWidth + '"',
+    '     height="' + safeHeight + '"',
+    '     viewBox="0 0 ' + safeWidth + ' ' + safeHeight + '">',
+    '  <foreignObject width="100%" height="100%">',
+    '    <xhtml:div xmlns:xhtml="http://www.w3.org/1999/xhtml"',
+    '      style="width:100%;height:100%;overflow:auto;',
+    'background:white;color:black;">',
+    styles,
+    bodyMarkup,
+    '    </xhtml:div>',
+    '  </foreignObject>',
+    '</svg>'
+  ].join("\n");
+}
+
+function svgToHtml(source) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(source, "image/svg+xml");
+
+  if (doc.querySelector("parsererror")) {
+    throw new Error("Invalid SVG markup.");
+  }
+
+  if (doc.documentElement.localName !== "svg") {
+    throw new Error("Input must contain an SVG root element.");
+  }
+
+  // Embed SVG as markup; do not execute its scripts.
+  doc.querySelectorAll("script, foreignObject, iframe")
+    .forEach(element => element.remove());
+
+  doc.querySelectorAll("*").forEach(element => {
+    for (const attr of [...element.attributes]) {
+      if (/^on/i.test(attr.name)) {
+        element.removeAttribute(attr.name);
+      }
+    }
+  });
+
+  const svgMarkup = new XMLSerializer()
+    .serializeToString(doc.documentElement);
+
+  return [
+    "<!DOCTYPE html>",
+    '<html lang="en">',
+    "<head>",
+    '<meta charset="UTF-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    "<title>Converted SVG</title>",
+    "<style>",
+    "body { margin:0; min-height:100vh;",
+    "display:grid; place-items:center; background:#fff; }",
+    "svg { max-width:100%; height:auto; }",
+    "</style>",
+    "</head>",
+    "<body>",
+    svgMarkup,
+    "</body>",
+    "</html>"
+  ].join("\n");
+}
+
+$("htmlMode").addEventListener("click", () => setMode("html"));
+$("svgMode").addEventListener("click", () => setMode("svg"));
+
+$("fileInput").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const valid = mode === "html"
+    ? /\.html?$/i.test(file.name)
+    : /\.svg$/i.test(file.name);
+
+  if (!valid) {
+    setStatus("Please choose the correct file type.", true);
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    setStatus("Maximum file size is 5 MB.", true);
+    return;
+  }
+
   try {
-    await navigator.clipboard.writeText(currentUrl);
-    message.textContent = "URL copied.";
+    $("sourceCode").value = await file.text();
+    setStatus("Loaded " + file.name);
   } catch {
-    message.textContent = "Could not copy URL.";
+    setStatus("Could not read the selected file.", true);
   }
 });
 
-document.getElementById("open").addEventListener("click", () => {
-  if (currentUrl) {
-    window.open(currentUrl, "_blank", "noopener,noreferrer");
+$("convertBtn").addEventListener("click", () => {
+  const source = $("sourceCode").value.trim();
+
+  if (!source) {
+    setStatus("Please upload a file or paste code first.", true);
+    return;
+  }
+
+  try {
+    const { width, height } = getDimensions();
+
+    if (mode === "html") {
+      outputText = htmlToSvg(source, width, height);
+      outputExtension = "svg";
+    } else {
+      outputText = svgToHtml(source);
+      outputExtension = "html";
+    }
+
+    $("outputCode").value = outputText;
+    $("resultPanel").hidden = false;
+    $("previewPanel").hidden = false;
+    $("previewFrame").srcdoc = outputExtension === "html"
+      ? outputText
+      : '<!DOCTYPE html><html><body style="margin:0">' +
+        '<img alt="SVG preview" style="max-width:100%" src="' +
+        'data:image/svg+xml;charset=utf-8,' +
+        encodeURIComponent(outputText) +
+        '"></body></html>';
+
+    setStatus("Conversion completed.");
+  } catch (error) {
+    $("resultPanel").hidden = true;
+    $("previewPanel").hidden = true;
+    setStatus(error.message, true);
   }
 });
 
-document.getElementById("clear").addEventListener("click", () => {
-  form.reset();
-  result.hidden = true;
-  currentUrl = "";
-  message.textContent = "";
-  githubStatus.textContent = "";
+$("copyBtn").addEventListener("click", async () => {
+  if (!outputText) return;
+  try {
+    await navigator.clipboard.writeText(outputText);
+    setStatus("Converted code copied.");
+  } catch {
+    setStatus("Copy failed. Select and copy the output manually.", true);
+  }
+});
+
+$("downloadBtn").addEventListener("click", () => {
+  if (!outputText) return;
+
+  const mime = outputExtension === "svg"
+    ? "image/svg+xml"
+    : "text/html";
+
+  const blob = new Blob([outputText], {
+    type: mime + ";charset=utf-8"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "monsterdrop-converted." + outputExtension;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+$("clearBtn").addEventListener("click", () => {
+  $("sourceCode").value = "";
+  $("fileInput").value = "";
+  $("outputCode").value = "";
+  $("resultPanel").hidden = true;
+  $("previewPanel").hidden = true;
+  $("previewFrame").removeAttribute("srcdoc");
+  outputText = "";
+  setStatus("");
 });
 </script>
 </body>
