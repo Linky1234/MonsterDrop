@@ -3,13 +3,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#081824">
-<title>MonsterDrop V6.5</title>
+<title>MonsterDrop V6.6</title>
 <link rel="stylesheet" href="./style.css?v=65">
 <script src="./app.js?v=64" defer></script>
 <style>
-.s3-nav {
+.converter-nav {
   display:block;
   width:100%;
   min-height:55px;
@@ -21,7 +21,7 @@
   text-decoration:none;
   font-size:16px;
 }
-.s3-nav:hover { background:#102d3c; }
+.converter-nav:hover { background:#102d3c; }
 </style>
 </head>
 <body>
@@ -38,10 +38,10 @@
     <button class="nav active" data-view="generator">✦ Generator</button>
     <button class="nav" data-view="presets">◈ Providers</button>
     <button class="nav" data-view="checker">◉ URL Checker</button>
-    <a class="s3-nav" href="./s3.html">☁ S3 HTML Generator</a>
+    <a class="converter-nav" href="./s3.html">⇄ HTML ↔ SVG Converter</a>
     <button class="nav" data-view="about">ⓘ About</button>
   </nav>
-  <div class="sidebar-bottom">MonsterDrop V6.5</div>
+  <div class="sidebar-bottom">MonsterDrop V6.6</div>
 </aside>
 
 <main class="main">
@@ -49,7 +49,6 @@
   <span id="pageTitle">MonsterDrop / Generator</span>
   <span class="status">● Ready</span>
 </header>
-
 <div class="content">
 <section id="generatorView">
   <div class="heading">
@@ -59,15 +58,9 @@
   </div>
 
   <div class="stats">
-    <div class="stat">
-      <span>Candidate Limit</span><strong>100M</strong>
-    </div>
-    <div class="stat">
-      <span>Providers</span><strong>13</strong>
-    </div>
-    <div class="stat">
-      <span>Page Sizes</span><strong>100 / 1K</strong>
-    </div>
+    <div class="stat"><span>Candidate Limit</span><strong>100M</strong></div>
+    <div class="stat"><span>Providers</span><strong>13</strong></div>
+    <div class="stat"><span>Page Sizes</span><strong>100 / 1K</strong></div>
   </div>
 
   <form id="generatorForm" class="panel">
@@ -79,9 +72,7 @@
           <option value="file">Single File</option>
         </select>
       </label>
-      <label>Branch
-        <input id="branch" value="main" required>
-      </label>
+      <label>Branch<input id="branch" value="main" required></label>
       <label class="full">GitHub Repository
         <input id="repo" placeholder="username/repository" required>
       </label>
@@ -113,21 +104,17 @@
           <option value="random">Random Numbers</option>
         </select>
       </label>
-      <label id="customEndingField" class="full" hidden>
-        Custom Ending
+      <label id="customEndingField" class="full" hidden>Custom Ending
         <input id="customEnding" value="123456">
       </label>
-      <label id="startNumberField" hidden>
-        Starting Number
+      <label id="startNumberField" hidden>Starting Number
         <input id="startNumber" type="number" min="0" value="1">
       </label>
-      <label id="endingCountField" hidden>
-        Endings Per File
+      <label id="endingCountField" hidden>Endings Per File
         <input id="endingCount" type="number" min="1"
                max="100000000" value="10">
       </label>
-      <label id="randomDigitsField" hidden>
-        Random Digits
+      <label id="randomDigitsField" hidden>Random Digits
         <input id="randomDigits" type="number" min="1"
                max="12" value="6">
       </label>
@@ -139,37 +126,27 @@
     </div>
     <div id="providerGrid" class="provider-grid"></div>
     <div class="selection-actions">
-      <button id="selectAll" type="button"
-              class="secondary">Select All</button>
-      <button id="clearProviders" type="button"
-              class="secondary">Clear All</button>
+      <button id="selectAll" type="button" class="secondary">Select All</button>
+      <button id="clearProviders" type="button" class="secondary">Clear All</button>
     </div>
 
-    <div class="provider-heading">
-      <h2>Special Links</h2>
-    </div>
+    <div class="provider-heading"><h2>Special Links</h2></div>
     <div id="specialGrid" class="provider-grid"></div>
-
     <div id="extraFields" class="form-grid extras" hidden>
-      <label id="npmField" class="full" hidden>
-        npm Package and Version
+      <label id="npmField" class="full" hidden>npm Package and Version
         <input id="npmPackage" placeholder="react@18.2.0">
       </label>
-      <label id="s3Field" class="full" hidden>
-        Public Amazon S3 Bucket
+      <label id="s3Field" class="full" hidden>Public Amazon S3 Bucket
         <input id="s3Bucket" placeholder="my-public-bucket">
       </label>
-      <label id="surgeField" class="full" hidden>
-        Surge Domain
+      <label id="surgeField" class="full" hidden>Surge Domain
         <input id="surgeDomain" placeholder="example.surge.sh">
       </label>
     </div>
 
     <div class="actions">
-      <button id="generate" class="primary"
-              type="submit">✦ Generate Links</button>
-      <button id="clear" class="secondary"
-              type="button">Clear</button>
+      <button id="generate" class="primary" type="submit">✦ Generate Links</button>
+      <button id="clear" class="secondary" type="button">Clear</button>
     </div>
     <div id="formError" class="error" role="alert" hidden></div>
     <p id="scanStatus" class="muted" role="status"></p>
@@ -181,16 +158,13 @@
         <h2>Generated Links</h2>
         <p id="resultsSummary" class="muted"></p>
       </div>
-      <button id="copyPage" class="secondary"
-              type="button">Copy Page</button>
+      <button id="copyPage" class="secondary" type="button">Copy Page</button>
     </div>
     <div id="linkList" class="link-list"></div>
     <div class="pagination">
-      <button id="prev" class="secondary"
-              type="button">Previous</button>
+      <button id="prev" class="secondary" type="button">Previous</button>
       <span id="pageLabel">Page 1</span>
-      <button id="next" class="secondary"
-              type="button">Next</button>
+      <button id="next" class="secondary" type="button">Next</button>
     </div>
   </section>
 </section>
@@ -221,14 +195,11 @@
         placeholder="https://example.com&#10;https://github.com"></textarea>
     </label>
     <div class="actions">
-      <button id="checkUrls" type="button"
-              class="primary">◉ Check URLs</button>
-      <button id="clearChecker" type="button"
-              class="secondary">Clear</button>
+      <button id="checkUrls" type="button" class="primary">◉ Check URLs</button>
+      <button id="clearChecker" type="button" class="secondary">Clear</button>
     </div>
     <p id="checkerStatus" class="muted" role="status"></p>
   </div>
-
   <section id="checkerResults" class="panel" hidden>
     <div class="results-header">
       <div>
@@ -258,9 +229,9 @@
   </div>
   <div class="panel">
     <h2>Galactic Aqua Link Generator</h2>
-    <p>MonsterDrop generates candidate links for files in public GitHub repositories.</p>
+    <p>MonsterDrop generates candidate links for public GitHub files.</p>
     <p>The URL Checker provides browser-based connectivity diagnostics.</p>
-    <p>The S3 HTML Generator constructs candidate links for public S3 objects.</p>
+    <p>The HTML ↔ SVG Converter transforms markup locally in your browser.</p>
     <p>Generated links are not guaranteed to work.</p>
   </div>
 </section>
