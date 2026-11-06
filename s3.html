@@ -1,0 +1,284 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081824">
+<title>MonsterDrop / S3 HTML Generator</title>
+<link rel="stylesheet" href="./style.css?v=65">
+<style>
+.s3-nav {
+  display:block;
+  width:100%;
+  min-height:55px;
+  padding:15px 16px;
+  border:1px solid transparent;
+  border-radius:9px;
+  background:transparent;
+  color:#a3d7f2;
+  text-decoration:none;
+  font-size:16px;
+}
+.s3-nav:hover { background:#102d3c; }
+.s3-nav.active {
+  color:#38e4d2;
+  background:#103c4b;
+  border-color:#217c85;
+}
+.s3-result {
+  overflow-wrap:anywhere;
+  color:#38e4d2;
+}
+.s3-note {
+  padding:14px;
+  border:1px solid #254557;
+  border-radius:9px;
+  background:#081a2a;
+  color:#91b2c1;
+  line-height:1.6;
+}
+.s3-result-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:18px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-icon">🌌</div>
+    <div>
+      <h2>MonsterDrop</h2>
+      <small>Galactic Link Generator</small>
+    </div>
+  </div>
+  <nav>
+    <a class="s3-nav" href="./index.html">✦ Generator</a>
+    <a class="s3-nav" href="./index.html#presets">◈ Providers</a>
+    <a class="s3-nav" href="./index.html#checker">◉ URL Checker</a>
+    <a class="s3-nav active" href="./s3.html">☁ S3 HTML Generator</a>
+    <a class="s3-nav" href="./index.html#about">ⓘ About</a>
+  </nav>
+  <div class="sidebar-bottom">MonsterDrop V6.5</div>
+</aside>
+
+<main class="main">
+<header class="topbar">
+  <span>MonsterDrop / S3 HTML Generator</span>
+  <span class="status">● Ready</span>
+</header>
+<div class="content">
+  <div class="heading">
+    <span class="eyebrow">AMAZON S3 PROVIDER</span>
+    <h1>S3 HTML Generator</h1>
+    <p>
+      Generate Amazon S3 candidate URLs for HTML files.
+      Optionally verify that the source file exists
+      in a public GitHub repository.
+    </p>
+  </div>
+
+  <form id="s3Form" class="panel">
+    <h2>Generator Settings</h2>
+    <div class="form-grid">
+      <label class="full">GitHub Repository
+        <input id="repository"
+               placeholder="Linky1234/MonsterDrop" required>
+      </label>
+      <label>Branch
+        <input id="branch" value="main" required>
+      </label>
+      <label>HTML File Path
+        <input id="filePath"
+               placeholder="folder/index.html" required>
+      </label>
+      <label class="full">Public Amazon S3 Bucket
+        <input id="bucket"
+               placeholder="my-public-bucket" required>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary">
+        ☁ Generate S3 Link
+      </button>
+      <button id="clear" type="button" class="secondary">
+        Clear
+      </button>
+    </div>
+    <p id="message" class="muted" role="status"></p>
+  </form>
+
+  <section id="result" class="panel" hidden>
+    <h2>Generated S3 Link</h2>
+    <p class="muted">Candidate URL</p>
+    <a id="generatedUrl" class="s3-result"
+       href="#" target="_blank" rel="noopener noreferrer"></a>
+    <div class="s3-result-actions">
+      <button id="copy" class="secondary" type="button">
+        Copy URL
+      </button>
+      <button id="open" class="primary" type="button">
+        Open in New Tab
+      </button>
+    </div>
+    <p id="githubStatus" class="muted"></p>
+  </section>
+
+  <div class="panel">
+    <h2>How Amazon S3 Links Work</h2>
+    <div class="s3-note">
+      This generator uses MonsterDrop's Amazon S3 URL format:
+      <strong>https://BUCKET.s3.amazonaws.com/PATH</strong>.
+      It does not upload or copy files from GitHub to Amazon S3.
+      The object must already exist in the specified bucket
+      and be publicly accessible.
+    </div>
+  </div>
+</div>
+</main>
+</div>
+
+<script>
+"use strict";
+
+const form = document.getElementById("s3Form");
+const result = document.getElementById("result");
+const message = document.getElementById("message");
+const githubStatus = document.getElementById("githubStatus");
+const generatedUrl = document.getElementById("generatedUrl");
+
+let currentUrl = "";
+
+function parseRepository(value) {
+  const cleaned = value.trim()
+    .replace(/^https?:\/\/github\.com\//i, "")
+    .replace(/\/+$/, "");
+
+  const parts = cleaned.split("/");
+  if (
+    parts.length !== 2 ||
+    !/^[a-z0-9-]+$/i.test(parts[0]) ||
+    !/^[a-z0-9._-]+$/i.test(parts[1])
+  ) {
+    throw new Error("Enter a valid GitHub repository.");
+  }
+  return parts;
+}
+
+function validatePath(value) {
+  const path = value.trim().replace(/^\/+/, "");
+  if (
+    !path ||
+    path.includes("\\") ||
+    path.split("/").some(part => !part || part === "." || part === "..") ||
+    !/\.html?$/i.test(path)
+  ) {
+    throw new Error("Enter a valid .html or .htm file path.");
+  }
+  return path;
+}
+
+function encodePath(path) {
+  return path.split("/").map(encodeURIComponent).join("/");
+}
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  result.hidden = true;
+  message.textContent = "";
+
+  try {
+    const [owner, repo] = parseRepository(
+      document.getElementById("repository").value
+    );
+    const branch = document.getElementById("branch").value.trim();
+    const path = validatePath(
+      document.getElementById("filePath").value
+    );
+    const bucket = document.getElementById("bucket").value.trim();
+
+    if (!branch || branch.includes("..") || /[\s\\]/.test(branch)) {
+      throw new Error("Enter a valid GitHub branch.");
+    }
+    if (
+      !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(bucket) ||
+      bucket.includes("..") ||
+      /^\d+\.\d+\.\d+\.\d+$/.test(bucket)
+    ) {
+      throw new Error("Enter a valid S3 bucket name.");
+    }
+
+    currentUrl =
+      "https://" + bucket + ".s3.amazonaws.com/" + encodePath(path);
+
+    generatedUrl.href = currentUrl;
+    generatedUrl.textContent = currentUrl;
+    result.hidden = false;
+    message.textContent = "Candidate S3 link generated.";
+    githubStatus.textContent = "Checking GitHub source file...";
+
+    const githubApi =
+      "https://api.github.com/repos/" +
+      encodeURIComponent(owner) + "/" +
+      encodeURIComponent(repo) + "/contents/" +
+      encodePath(path) + "?ref=" + encodeURIComponent(branch);
+
+    try {
+      const response = await fetch(githubApi, {
+        headers: { Accept: "application/vnd.github+json" }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        githubStatus.textContent =
+          data.type === "file"
+            ? "GitHub source file found. S3 availability is not verified."
+            : "GitHub path is not a file.";
+      } else if (response.status === 404) {
+        githubStatus.textContent =
+          "GitHub file not found. S3 availability is not verified.";
+      } else {
+        githubStatus.textContent =
+          "GitHub verification unavailable (HTTP " +
+          response.status + "). S3 availability is not verified.";
+      }
+    } catch {
+      githubStatus.textContent =
+        "GitHub verification unavailable. S3 availability is not verified.";
+    }
+  } catch (error) {
+    message.textContent = error.message;
+  }
+});
+
+document.getElementById("copy").addEventListener("click", async () => {
+  if (!currentUrl) return;
+  try {
+    await navigator.clipboard.writeText(currentUrl);
+    message.textContent = "URL copied.";
+  } catch {
+    message.textContent = "Could not copy URL.";
+  }
+});
+
+document.getElementById("open").addEventListener("click", () => {
+  if (currentUrl) {
+    window.open(currentUrl, "_blank", "noopener,noreferrer");
+  }
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  form.reset();
+  result.hidden = true;
+  currentUrl = "";
+  message.textContent = "";
+  githubStatus.textContent = "";
+});
+</script>
+</body>
+</html>
