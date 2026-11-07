@@ -58,6 +58,7 @@
   <span id="pageTitle">MonsterDrop / Generator</span>
   <span class="status">● Ready</span>
 </header>
+
 <div class="content">
 <section id="generatorView">
   <div class="heading">
@@ -74,6 +75,7 @@
 
   <form id="generatorForm" class="panel">
     <h2>Generator Settings</h2>
+
     <div class="form-grid">
       <label>Generation Mode
         <select id="mode">
@@ -81,19 +83,26 @@
           <option value="file">Single File</option>
         </select>
       </label>
-      <label>Branch<input id="branch" value="main" required></label>
+
+      <label>Branch
+        <input id="branch" value="main" required>
+      </label>
+
       <label class="full">GitHub Repository
         <input id="repo" placeholder="username/repository" required>
       </label>
+
       <label id="fileField" class="full" hidden>File Path
         <input id="file" placeholder="folder/index.html">
       </label>
+
       <label>Links Per Page
         <select id="pageSize">
           <option value="100">100</option>
           <option value="1000">1,000</option>
         </select>
       </label>
+
       <label>Maximum Links
         <input id="limit" type="number" min="1"
                max="100000000" value="100000000">
@@ -104,6 +113,7 @@
       <h2>Custom URL Ending</h2>
       <p class="muted">Optional text or numeric path ending.</p>
     </div>
+
     <div class="form-grid">
       <label class="full">Ending Mode
         <select id="endingMode">
@@ -113,16 +123,20 @@
           <option value="random">Random Numbers</option>
         </select>
       </label>
+
       <label id="customEndingField" class="full" hidden>Custom Ending
         <input id="customEnding" value="123456">
       </label>
+
       <label id="startNumberField" hidden>Starting Number
         <input id="startNumber" type="number" min="0" value="1">
       </label>
+
       <label id="endingCountField" hidden>Endings Per File
         <input id="endingCount" type="number" min="1"
                max="100000000" value="10">
       </label>
+
       <label id="randomDigitsField" hidden>Random Digits
         <input id="randomDigits" type="number" min="1"
                max="12" value="6">
@@ -133,21 +147,29 @@
       <h2>Providers</h2>
       <p class="muted">Choose one or more services.</p>
     </div>
+
     <div id="providerGrid" class="provider-grid"></div>
+
     <div class="selection-actions">
       <button id="selectAll" type="button" class="secondary">Select All</button>
       <button id="clearProviders" type="button" class="secondary">Clear All</button>
     </div>
 
-    <div class="provider-heading"><h2>Special Links</h2></div>
+    <div class="provider-heading">
+      <h2>Special Links</h2>
+    </div>
+
     <div id="specialGrid" class="provider-grid"></div>
+
     <div id="extraFields" class="form-grid extras" hidden>
       <label id="npmField" class="full" hidden>npm Package and Version
         <input id="npmPackage" placeholder="react@18.2.0">
       </label>
+
       <label id="s3Field" class="full" hidden>Public Amazon S3 Bucket
         <input id="s3Bucket" placeholder="my-public-bucket">
       </label>
+
       <label id="surgeField" class="full" hidden>Surge Domain
         <input id="surgeDomain" placeholder="example.surge.sh">
       </label>
@@ -157,6 +179,7 @@
       <button id="generate" class="primary" type="submit">✦ Generate Links</button>
       <button id="clear" class="secondary" type="button">Clear</button>
     </div>
+
     <div id="formError" class="error" role="alert" hidden></div>
     <p id="scanStatus" class="muted" role="status"></p>
   </form>
@@ -169,7 +192,9 @@
       </div>
       <button id="copyPage" class="secondary" type="button">Copy Page</button>
     </div>
+
     <div id="linkList" class="link-list"></div>
+
     <div class="pagination">
       <button id="prev" class="secondary" type="button">Previous</button>
       <span id="pageLabel">Page 1</span>
@@ -193,22 +218,27 @@
     <h1>URL Checker</h1>
     <p>Validate URL formatting and run browser-based reachability checks.</p>
   </div>
+
   <div class="panel">
     <h2>Check URLs</h2>
     <p class="muted">
       Enter one URL per line, up to 100 URLs.
       This tool does not determine school filtering classifications.
     </p>
+
     <label class="full">URLs to Check
       <textarea id="checkerInput" rows="9"
         placeholder="https://example.com&#10;https://github.com"></textarea>
     </label>
+
     <div class="actions">
       <button id="checkUrls" type="button" class="primary">◉ Check URLs</button>
       <button id="clearChecker" type="button" class="secondary">Clear</button>
     </div>
+
     <p id="checkerStatus" class="muted" role="status"></p>
   </div>
+
   <section id="checkerResults" class="panel" hidden>
     <div class="results-header">
       <div>
@@ -220,6 +250,7 @@
     </div>
     <div id="checkerList" class="link-list"></div>
   </section>
+
   <div class="panel">
     <h2>Understanding Results</h2>
     <p class="muted">
@@ -235,14 +266,26 @@
   <div class="heading">
     <span class="eyebrow">COMMUNITY</span>
     <h1>Discord</h1>
-    <p>Browse the channels available through WidgetBot.</p>
+    <p>Select a server, then browse its available channels.</p>
   </div>
 
   <div class="panel">
     <label>Selected Server
       <select id="discordServer">
         <option value="https://e.widgetbot.io/channels/1468487779456389163/1500350433216954429">
-          Discord Server
+          Server 1 — 1468487779456389163
+        </option>
+        <option value="https://e.widgetbot.io/channels/1502282082335068160/1502282892372606987">
+          Server 2 — 1502282082335068160
+        </option>
+        <option value="https://e.widgetbot.io/channels/1548495219001925655/1548715605656338432">
+          Server 3 — 1548495219001925655
+        </option>
+        <option value="https://e.widgetbot.io/channels/1505701343002886256/1551444649028096102">
+          Server 4 — 1505701343002886256
+        </option>
+        <option value="https://e.widgetbot.io/channels/1478613147462926459/1478634852822810664">
+          Server 5 — 1478613147462926459
         </option>
       </select>
     </label>
@@ -267,6 +310,7 @@
     <span class="eyebrow">ABOUT</span>
     <h1>MonsterDrop</h1>
   </div>
+
   <div class="panel">
     <h2>Galactic Aqua Link Generator</h2>
     <p>MonsterDrop generates candidate links for public GitHub files.</p>
