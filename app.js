@@ -1,4 +1,3 @@
-
 "use strict";
 
 const $ = id => document.getElementById(id);
@@ -54,9 +53,7 @@ let endingSettings = {
 let checkerResults = [];
 let checkerRun = 0;
 
-// ------------------------------------
 // NAVIGATION
-// ------------------------------------
 
 function setView(name) {
   const views = [
@@ -94,9 +91,7 @@ document.querySelectorAll(".nav").forEach(button => {
   });
 });
 
-// ------------------------------------
 // GENERATOR CONTROLS
-// ------------------------------------
 
 function showError(message) {
   $("formError").textContent = message;
@@ -117,10 +112,7 @@ function updateMode() {
     $("mode").value !== "file";
 }
 
-$("mode").addEventListener(
-  "change",
-  updateMode
-);
+$("mode").addEventListener("change", updateMode);
 
 function updateEndingFields() {
   const mode = $("endingMode").value;
@@ -151,8 +143,10 @@ function readEndingSettings() {
   const count = Number($("endingCount").value);
   const digits = Number($("randomDigits").value);
 
-  if (!["none", "custom", "sequential", "random"]
-      .includes(mode)) {
+  if (
+    !["none", "custom", "sequential", "random"]
+      .includes(mode)
+  ) {
     throw new Error("Invalid ending mode.");
   }
 
@@ -242,8 +236,6 @@ function endingAt(index) {
 
   const modulus = 10 ** endingSettings.digits;
 
-  // A coprime multiplier makes the sequence
-  // unique within its numeric range.
   const value = (
     index * 7919 + endingSettings.seed
   ) % modulus;
@@ -254,9 +246,7 @@ function endingAt(index) {
   );
 }
 
-// ------------------------------------
 // PROVIDERS
-// ------------------------------------
 
 function selectedNames() {
   return Array.from(
@@ -295,7 +285,9 @@ function createOption(name) {
   checkbox.checked = defaults.has(name);
 
   const span = document.createElement("span");
-  span.textContent = name;
+  span.textContent = name === "Surge-style"
+    ? "Surge (root URL)"
+    : name;
 
   function update() {
     label.classList.toggle(
@@ -309,6 +301,7 @@ function createOption(name) {
   checkbox.addEventListener("change", update);
 
   label.append(checkbox, span);
+
   label.classList.toggle(
     "selected",
     checkbox.checked
@@ -334,6 +327,7 @@ function selectProviders(checked) {
     "#providerGrid input"
   ).forEach(input => {
     input.checked = checked;
+
     input.closest(".provider-option")
       .classList.toggle("selected", checked);
   });
@@ -349,9 +343,7 @@ $("clearProviders").addEventListener("click", () => {
   selectProviders(false);
 });
 
-// ------------------------------------
 // GITHUB REPOSITORY SCANNING
-// ------------------------------------
 
 function parseRepository(value) {
   let input = value.trim();
@@ -455,9 +447,7 @@ async function scanRepository(owner, repo, branch) {
     .map(item => item.path);
 }
 
-// ------------------------------------
 // LINK GENERATION
-// ------------------------------------
 
 function buildLink(provider, file) {
   const owner = encodeURIComponent(repoInfo.owner);
@@ -506,7 +496,7 @@ function buildLink(provider, file) {
   }
 
   if (provider === "Surge-style") {
-    return `https://${options.surge}/${path}`;
+    return `https://${options.surge}/`;
   }
 
   if (provider === "HTML embed") {
@@ -516,33 +506,94 @@ function buildLink(provider, file) {
   throw new Error("Unknown provider: " + provider);
 }
 
+function normalizeSurgeDomain(value) {
+  const input = value.trim();
+  let url;
+
+  try {
+    url = new URL(
+      /^https?:\/\//i.test(input)
+        ? input
+        : "https://" + input
+    );
+  } catch {
+    throw new Error(
+      "Enter a valid Surge domain or URL."
+    );
+  }
+
+  if (
+    !["https:", "http:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.port ||
+    !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.surge\.sh$/i
+      .test(url.hostname)
+  ) {
+    throw new Error(
+      "Enter a domain such as example.surge.sh."
+    );
+  }
+
+  return url.hostname.toLowerCase();
+}
+
+function fileProviders() {
+  return activeProviders.filter(
+    name => name !== "Surge-style"
+  );
+}
+
+function fileLinkCount() {
+  return files.length *
+    fileProviders().length *
+    endingSettings.count;
+}
+
 function totalLinks() {
   return Math.min(
     maxLinks,
-    files.length *
-    activeProviders.length *
-    endingSettings.count
+    fileLinkCount() +
+      (activeProviders.includes("Surge-style") ? 1 : 0)
   );
 }
 
 function getLinkAt(index) {
-  const endings = endingSettings.count;
-  const providers = activeProviders.length;
-  const combinations = endings * providers;
+  if (index < 0 || index >= totalLinks()) {
+    throw new Error("Link index out of range.");
+  }
 
+  const hasSurge =
+    activeProviders.includes("Surge-style");
+
+  // Surge produces one root URL, shown first.
+  // Repository file paths and endings do not apply.
+  if (hasSurge && index === 0) {
+    return {
+      file: "Site homepage",
+      provider: "Surge-style",
+      url: buildLink("Surge-style", "")
+    };
+  }
+
+  const providers = fileProviders();
+  const endings = endingSettings.count;
+  const combinations = endings * providers.length;
+
+  const fileOffset = index - (hasSurge ? 1 : 0);
   const fileIndex = Math.floor(
-    index / combinations
+    fileOffset / combinations
   );
 
-  const remainder = index % combinations;
+  const remainder = fileOffset % combinations;
+
   const providerIndex = Math.floor(
     remainder / endings
   );
 
   const endingIndex = remainder % endings;
-
   const file = files[fileIndex];
-  const provider = activeProviders[providerIndex];
+  const provider = providers[providerIndex];
 
   const url =
     buildLink(provider, file) +
@@ -719,12 +770,10 @@ $("generatorForm").addEventListener(
         throw new Error("Invalid S3 bucket.");
       }
 
-      if (
-        selected.includes("Surge-style") &&
-        !/^(?:[a-z0-9-]+\.)+[a-z]{2,}$/i
-          .test(nextOptions.surge)
-      ) {
-        throw new Error("Invalid Surge domain.");
+      if (selected.includes("Surge-style")) {
+        nextOptions.surge = normalizeSurgeDomain(
+          nextOptions.surge
+        );
       }
 
       const limit = Number($("limit").value);
@@ -789,7 +838,6 @@ $("generatorForm").addEventListener(
         `Found ${files.length.toLocaleString()} files. ` +
         `${totalLinks().toLocaleString()} candidate links.`
       );
-
     } catch (error) {
       if (requestId === generationId) {
         showError(error.message);
@@ -820,6 +868,7 @@ $("next").addEventListener("click", () => {
 
 $("copyPage").addEventListener("click", () => {
   const start = currentPage * pageSize;
+
   const end = Math.min(
     start + pageSize,
     totalLinks()
@@ -882,6 +931,7 @@ function renderPresets() {
     title.textContent = name;
 
     const description = document.createElement("span");
+
     description.textContent =
       specialNames.includes(name)
         ? "Special link format"
@@ -912,9 +962,7 @@ function renderPresets() {
   container.replaceChildren(fragment);
 }
 
-// ------------------------------------
 // URL CHECKER
-// ------------------------------------
 
 function parseCheckUrl(value) {
   const trimmed = value.trim();
@@ -932,19 +980,21 @@ function parseCheckUrl(value) {
   }
 
   if (!["http:", "https:"].includes(url.protocol)) {
-    throw new Error("Only HTTP and HTTPS are supported");
+    throw new Error(
+      "Only HTTP and HTTPS are supported"
+    );
   }
 
   if (!url.hostname || url.username || url.password) {
-    throw new Error("Invalid or unsupported URL");
+    throw new Error(
+      "Invalid or unsupported URL"
+    );
   }
 
   return url.href;
 }
 
 async function diagnoseUrl(url) {
-  // A browser cannot reliably check arbitrary
-  // cross-origin URLs without CORS permission.
   const controller = new AbortController();
 
   const timeout = setTimeout(() => {
@@ -973,7 +1023,8 @@ async function diagnoseUrl(url) {
     ) {
       return {
         status: "Inconclusive",
-        detail: "Server does not support HEAD requests"
+        detail:
+          "Server does not support HEAD requests"
       };
     }
 
@@ -981,7 +1032,6 @@ async function diagnoseUrl(url) {
       status: "HTTP Error",
       detail: `HTTP ${response.status}`
     };
-
   } catch (error) {
     return {
       status: "Inconclusive",
@@ -1007,6 +1057,7 @@ function renderCheckerResults() {
     info.className = "link-info";
 
     const status = document.createElement("small");
+
     status.textContent =
       `${item.status} — ${item.detail}`;
 
@@ -1095,6 +1146,7 @@ $("checkUrls").addEventListener("click", async () => {
           status: "Invalid",
           detail: error.message
         });
+
         continue;
       }
 
@@ -1112,7 +1164,6 @@ $("checkUrls").addEventListener("click", async () => {
 
     $("checkerStatus").textContent =
       "Checks complete. Inconclusive does not mean blocked.";
-
   } finally {
     if (run === checkerRun) {
       button.disabled = false;
@@ -1146,9 +1197,20 @@ $("copyCheckerResults").addEventListener(
   }
 );
 
-// ------------------------------------
 // INITIALIZATION
-// ------------------------------------
+
+const surgeHelp = document.createElement("small");
+surgeHelp.className = "muted";
+
+surgeHelp.textContent =
+  "Enter an existing Surge deployment. Produces one homepage URL; " +
+  "file paths and ending modes are ignored for Surge. " +
+  "This does not publish a site.";
+
+$("surgeDomain").placeholder =
+  "https://example.surge.sh/";
+
+$("surgeField").append(surgeHelp);
 
 renderOptions();
 renderPresets();
