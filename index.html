@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,6 +21,15 @@
   font-size:16px;
 }
 .converter-nav:hover { background:#102d3c; }
+.discord-frame {
+  display:block;
+  width:100%;
+  height:78vh;
+  min-height:600px;
+  border:0;
+  border-radius:12px;
+  background:#081824;
+}
 </style>
 </head>
 <body>
@@ -38,6 +46,7 @@
     <button class="nav active" data-view="generator">✦ Generator</button>
     <button class="nav" data-view="presets">◈ Providers</button>
     <button class="nav" data-view="checker">◉ URL Checker</button>
+    <button class="nav" data-view="discord">◌ Discord</button>
     <a class="converter-nav" href="./s3.html">⇄ HTML ↔ SVG Converter</a>
     <button class="nav" data-view="about">ⓘ About</button>
   </nav>
@@ -222,6 +231,37 @@
   </div>
 </section>
 
+<section id="discordView" hidden>
+  <div class="heading">
+    <span class="eyebrow">COMMUNITY</span>
+    <h1>Discord</h1>
+    <p>Browse the channels available through WidgetBot.</p>
+  </div>
+
+  <div class="panel">
+    <label>Selected Server
+      <select id="discordServer">
+        <option value="https://e.widgetbot.io/channels/1468487779456389163/1500350433216954429">
+          Discord Server
+        </option>
+      </select>
+    </label>
+
+    <p class="muted">
+      Use the channel list inside the widget to switch channels.
+      Only channels enabled for WidgetBot are available.
+    </p>
+
+    <iframe
+      id="discordFrame"
+      class="discord-frame"
+      title="Discord server channels via WidgetBot"
+      allow="clipboard-write; fullscreen"
+      allowfullscreen>
+    </iframe>
+  </div>
+</section>
+
 <section id="aboutView" hidden>
   <div class="heading">
     <span class="eyebrow">ABOUT</span>
@@ -238,5 +278,47 @@
 </div>
 </main>
 </div>
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+  const originalSetView = setView;
+  const discordView = document.getElementById("discordView");
+  const discordFrame = document.getElementById("discordFrame");
+  const discordServer = document.getElementById("discordServer");
+
+  function loadDiscord() {
+    if (discordFrame.getAttribute("src") !== discordServer.value) {
+      discordFrame.src = discordServer.value;
+    }
+  }
+
+  setView = function (name) {
+    discordView.hidden = name !== "discord";
+
+    if (name !== "discord") {
+      originalSetView(name);
+      return;
+    }
+
+    for (const view of ["generator", "presets", "checker", "about"]) {
+      document.getElementById(view + "View").hidden = true;
+    }
+
+    document.querySelectorAll(".nav").forEach(button => {
+      button.classList.toggle(
+        "active",
+        button.dataset.view === "discord"
+      );
+    });
+
+    document.getElementById("pageTitle").textContent =
+      "MonsterDrop / Discord";
+
+    loadDiscord();
+  };
+
+  discordServer.addEventListener("change", loadDiscord);
+});
+</script>
 </body>
 </html>
