@@ -42,14 +42,17 @@
       <small>Galactic Link Generator</small>
     </div>
   </div>
+
   <nav>
     <button class="nav active" data-view="generator">✦ Generator</button>
     <button class="nav" data-view="presets">◈ Providers</button>
     <button class="nav" data-view="checker">◉ URL Checker</button>
     <button class="nav" data-view="discord">◌ Discord</button>
+    <button class="nav" data-view="publisher">↗ Surge Publisher</button>
     <a class="converter-nav" href="./s3.html">⇄ HTML ↔ SVG Converter</a>
     <button class="nav" data-view="about">ⓘ About</button>
   </nav>
+
   <div class="sidebar-bottom">MonsterDrop V6.6</div>
 </aside>
 
@@ -105,7 +108,7 @@
 
       <label>Maximum Links
         <input id="limit" type="number" min="1"
-               max="100000000" value="100000000">
+          max="100000000" value="100000000">
       </label>
     </div>
 
@@ -124,22 +127,26 @@
         </select>
       </label>
 
-      <label id="customEndingField" class="full" hidden>Custom Ending
+      <label id="customEndingField" class="full" hidden>
+        Custom Ending
         <input id="customEnding" value="123456">
       </label>
 
-      <label id="startNumberField" hidden>Starting Number
+      <label id="startNumberField" hidden>
+        Starting Number
         <input id="startNumber" type="number" min="0" value="1">
       </label>
 
-      <label id="endingCountField" hidden>Endings Per File
+      <label id="endingCountField" hidden>
+        Endings Per File
         <input id="endingCount" type="number" min="1"
-               max="100000000" value="10">
+          max="100000000" value="10">
       </label>
 
-      <label id="randomDigitsField" hidden>Random Digits
-        <input id="randomDigits" type="number" min="1"
-               max="12" value="6">
+      <label id="randomDigitsField" hidden>
+        Random Digits
+        <input id="randomDigits" type="number"
+          min="1" max="12" value="6">
       </label>
     </div>
 
@@ -155,22 +162,22 @@
       <button id="clearProviders" type="button" class="secondary">Clear All</button>
     </div>
 
-    <div class="provider-heading">
-      <h2>Special Links</h2>
-    </div>
-
+    <div class="provider-heading"><h2>Special Links</h2></div>
     <div id="specialGrid" class="provider-grid"></div>
 
     <div id="extraFields" class="form-grid extras" hidden>
-      <label id="npmField" class="full" hidden>npm Package and Version
+      <label id="npmField" class="full" hidden>
+        npm Package and Version
         <input id="npmPackage" placeholder="react@18.2.0">
       </label>
 
-      <label id="s3Field" class="full" hidden>Public Amazon S3 Bucket
+      <label id="s3Field" class="full" hidden>
+        Public Amazon S3 Bucket
         <input id="s3Bucket" placeholder="my-public-bucket">
       </label>
 
-      <label id="surgeField" class="full" hidden>Surge Domain
+      <label id="surgeField" class="full" hidden>
+        Surge Domain
         <input id="surgeDomain" placeholder="example.surge.sh">
       </label>
     </div>
@@ -245,8 +252,8 @@
         <h2>Check Results</h2>
         <p id="checkerSummary" class="muted"></p>
       </div>
-      <button id="copyCheckerResults" class="secondary"
-              type="button">Copy Results</button>
+      <button id="copyCheckerResults"
+        class="secondary" type="button">Copy Results</button>
     </div>
     <div id="checkerList" class="link-list"></div>
   </section>
@@ -295,14 +302,80 @@
       Only channels enabled for WidgetBot are available.
     </p>
 
-    <iframe
-      id="discordFrame"
-      class="discord-frame"
+    <iframe id="discordFrame" class="discord-frame"
       title="Discord server channels via WidgetBot"
-      allow="clipboard-write; fullscreen"
-      allowfullscreen>
-    </iframe>
+      allow="clipboard-write; fullscreen" allowfullscreen></iframe>
   </div>
+</section>
+
+<section id="publisherView" hidden>
+  <div class="heading">
+    <span class="eyebrow">PUBLISH</span>
+    <h1>Surge Publisher</h1>
+    <p>Publish your chosen GitHub file at new Surge root URLs.</p>
+  </div>
+
+  <div class="panel">
+    <label>Helper code
+      <input id="helperCode" type="password" autocomplete="off"
+        placeholder="Copy the helper code from PowerShell">
+    </label>
+
+    <div class="actions">
+      <button id="connectHelper" class="secondary" type="button">
+        Connect helper
+      </button>
+    </div>
+
+    <p id="helperStatus" role="status" class="muted">
+      Start the helper on this computer first.
+      Use the code it prints, not your Surge password.
+    </p>
+  </div>
+
+  <form id="publishForm" class="panel">
+    <div class="form-grid">
+      <label class="full">Repository
+        <input id="publishRepo"
+          placeholder="sirhelp1234/Nocturn" required>
+      </label>
+
+      <label>Branch
+        <input id="publishBranch" value="main" required>
+      </label>
+
+      <label>File path
+        <input id="publishFile"
+          placeholder="Nocturne.html" required>
+      </label>
+
+      <label>Number of links
+        <input id="publishCount" type="number"
+          min="1" max="20" value="1" required>
+      </label>
+    </div>
+
+    <p class="muted">
+      Creates public deployments. HTML and SVG files from public
+      repositories are supported; sites requiring a build must be built first.
+    </p>
+
+    <div class="actions">
+      <button id="publishSites" class="primary"
+        type="submit" disabled>Publish sites</button>
+    </div>
+
+    <p id="publishStatus" role="status" class="muted"></p>
+    <div id="publishResults" class="link-list"></div>
+
+    <label>HTTP-checked links
+      <textarea id="publishedLinks" rows="5" readonly></textarea>
+    </label>
+
+    <button id="copyPublished" type="button" class="secondary">
+      Copy checked links
+    </button>
+  </form>
 </section>
 
 <section id="aboutView" hidden>
@@ -327,41 +400,287 @@
 window.addEventListener("DOMContentLoaded", () => {
   const originalSetView = setView;
   const discordView = document.getElementById("discordView");
+  const publisherView = document.getElementById("publisherView");
   const discordFrame = document.getElementById("discordFrame");
   const discordServer = document.getElementById("discordServer");
 
   function loadDiscord() {
-    if (discordFrame.getAttribute("src") !== discordServer.value) {
+    if (
+      discordFrame.getAttribute("src") !==
+      discordServer.value
+    ) {
       discordFrame.src = discordServer.value;
     }
   }
 
   setView = function (name) {
     discordView.hidden = name !== "discord";
+    publisherView.hidden = name !== "publisher";
 
-    if (name !== "discord") {
+    if (name !== "discord" && name !== "publisher") {
       originalSetView(name);
       return;
     }
 
-    for (const view of ["generator", "presets", "checker", "about"]) {
+    for (const view of [
+      "generator",
+      "presets",
+      "checker",
+      "about"
+    ]) {
       document.getElementById(view + "View").hidden = true;
     }
 
     document.querySelectorAll(".nav").forEach(button => {
       button.classList.toggle(
         "active",
-        button.dataset.view === "discord"
+        button.dataset.view === name
       );
     });
 
     document.getElementById("pageTitle").textContent =
-      "MonsterDrop / Discord";
+      "MonsterDrop / " +
+      (name === "discord" ? "Discord" : "Surge Publisher");
 
-    loadDiscord();
+    if (name === "discord") {
+      loadDiscord();
+    }
+
+    if (name === "publisher") {
+      if (!document.getElementById("publishRepo").value) {
+        document.getElementById("publishRepo").value =
+          document.getElementById("repo").value;
+      }
+
+      if (!document.getElementById("publishFile").value) {
+        document.getElementById("publishFile").value =
+          document.getElementById("file").value;
+      }
+    }
   };
 
   discordServer.addEventListener("change", loadDiscord);
+
+  const helperURL = "http://127.0.0.1:43127";
+  const el = id => document.getElementById(id);
+
+  let helperToken = "";
+  let pollTimer;
+  let activeJobId = "";
+  let connecting = false;
+
+  async function helperRequest(route, data) {
+    const response = await fetch(helperURL + route, {
+      method: data ? "POST" : "GET",
+      credentials: "omit",
+      headers: {
+        "X-MonsterDrop-Token": helperToken,
+        ...(data
+          ? { "Content-Type": "application/json" }
+          : {})
+      },
+      ...(data
+        ? { body: JSON.stringify(data) }
+        : {}),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error || "Helper request failed."
+      );
+    }
+
+    return result;
+  }
+
+  function showJob(job) {
+    if (!job) return;
+
+    activeJobId = job.id;
+
+    const running = job.state === "running";
+
+    el("publishSites").disabled =
+      running || !helperToken;
+
+    el("connectHelper").disabled = running;
+
+    el("publishStatus").textContent =
+      (running ? "Publishing" : "Batch " + job.state) +
+      ": " + job.results.length + " of " + job.count +
+      (job.error ? ". " + job.error : "") +
+      (
+        running
+          ? ". Keep PowerShell open."
+          : ". HTTP checks do not test every app feature."
+      );
+
+    const rows = job.results.map(item => {
+      const row = document.createElement("div");
+      row.className = "link-item";
+
+      const info = document.createElement("div");
+      info.className = "link-info";
+
+      const label = document.createElement("small");
+      label.textContent =
+        item.status +
+        (item.error ? " — " + item.error : "");
+
+      info.append(label);
+
+      if (item.status !== "Failed") {
+        const link = document.createElement("a");
+        link.href = item.url;
+        link.textContent = item.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        info.append(link);
+      }
+
+      row.append(info);
+      return row;
+    });
+
+    el("publishResults").replaceChildren(...rows);
+
+    el("publishedLinks").value = job.results
+      .filter(item =>
+        item.status === "Published and HTTP-checked"
+      )
+      .map(item => item.url)
+      .join("\n");
+
+    clearTimeout(pollTimer);
+
+    if (running) {
+      pollTimer = setTimeout(pollJob, 2000);
+    }
+  }
+
+  async function pollJob() {
+    try {
+      const result = await helperRequest("/job");
+
+      if (
+        !result.job ||
+        result.job.id !== activeJobId
+      ) {
+        throw new Error(
+          "The helper restarted. Reconnect to check its current state."
+        );
+      }
+
+      showJob(result.job);
+    } catch (error) {
+      el("helperStatus").textContent =
+        "Connection lost: " + error.message +
+        " Publishing may still be running. " +
+        "Reconnect before starting another batch.";
+
+      el("publishSites").disabled = true;
+      el("connectHelper").disabled = false;
+    }
+  }
+
+  el("connectHelper").addEventListener("click", async () => {
+    if (connecting) return;
+
+    clearTimeout(pollTimer);
+
+    helperToken = el("helperCode").value.trim();
+
+    if (!helperToken) {
+      el("helperStatus").textContent =
+        "Paste the helper code from PowerShell.";
+      return;
+    }
+
+    connecting = true;
+
+    el("connectHelper").disabled = true;
+    el("publishSites").disabled = true;
+
+    el("helperStatus").textContent =
+      "Connecting… Allow local-device access if your browser asks.";
+
+    try {
+      const result = await helperRequest("/health");
+
+      el("helperStatus").textContent =
+        "Helper connected. Your Surge login stays on this computer.";
+
+      el("publishSites").disabled = false;
+      el("connectHelper").disabled = false;
+
+      if (result.job) {
+        showJob(result.job);
+      }
+    } catch (error) {
+      helperToken = "";
+
+      el("helperStatus").textContent =
+        "Could not connect: " + error.message +
+        " Start the updated helper, check its code, " +
+        "and allow local-device access. " +
+        "Open MonsterDrop directly on GitHub Pages " +
+        "if an embedded view blocks it.";
+
+      el("connectHelper").disabled = false;
+    } finally {
+      connecting = false;
+    }
+  });
+
+  el("publishForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    if (
+      !helperToken ||
+      el("publishSites").disabled
+    ) {
+      return;
+    }
+
+    el("publishSites").disabled = true;
+    el("connectHelper").disabled = true;
+    el("publishStatus").textContent = "Starting batch…";
+
+    try {
+      const result = await helperRequest("/publish", {
+        repo: el("publishRepo").value.trim(),
+        branch: el("publishBranch").value.trim(),
+        file: el("publishFile").value.trim(),
+        count: Number(el("publishCount").value)
+      });
+
+      showJob(result.job);
+    } catch (error) {
+      el("publishStatus").textContent =
+        error.message +
+        " Reconnect before retrying; " +
+        "a batch might already have started.";
+
+      el("connectHelper").disabled = false;
+    }
+  });
+
+  el("copyPublished").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(
+        el("publishedLinks").value
+      );
+
+      el("publishStatus").textContent =
+        "Checked links copied.";
+    } catch {
+      el("publishStatus").textContent =
+        "Select and copy the links from the text box.";
+    }
+  });
 });
 </script>
 </body>
