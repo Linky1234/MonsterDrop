@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MonsterDrop · FreeDNS Batch</title>
+<title>MonsterDrop · MonsterDNS</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; background: #081824; color: #d9f4ff; font: 16px system-ui, sans-serif; }
@@ -25,7 +25,30 @@
 <body>
 <main>
   <a href="./index.html">← MonsterDrop</a>
-  <h1>FreeDNS Batch</h1>
+  <h1>MonsterDNS</h1>
+  <p>Create up to five IPv4 DNS records under <strong>monsterdns-1234.dns.army</strong>.</p>
+  <form id="monsterDNSForm">
+    <div class="grid">
+      <label>Destination IPv4 address
+        <input id="monsterDNSIP" placeholder="Server IPv4 address" required>
+      </label>
+      <label>Count
+        <input id="monsterDNSCount" type="number" min="1" max="5" value="1" required>
+      </label>
+      <label>MonsterDNS helper code
+        <input id="monsterDNSCode" type="password" autocomplete="off" required>
+      </label>
+    </div>
+    <p class="muted">Run <code>node monsterdns.cjs</code> in PowerShell and paste the code it prints.</p>
+    <button id="monsterDNSCreate" type="submit">Create Records</button>
+    <p id="monsterDNSStatus" role="status"></p>
+    <ul id="monsterDNSResults"></ul>
+    <label>Created hostnames
+      <textarea id="monsterDNSNames" rows="5" readonly></textarea>
+    </label>
+    <p class="muted">These are DNS records. To serve a website, the destination server must accept the new names and have HTTPS configured for them.</p>
+  </form>
+  <h2>FreeDNS Batch</h2>
   <p>Prepare up to five A records. Choose a shared domain and enter the IPv4 address you want the names to point to.</p>
 
   <form id="batchForm">
@@ -83,6 +106,54 @@
 </main>
 <script>
 "use strict";
+document.getElementById("monsterDNSForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  const get = id => document.getElementById(id);
+  const button = get("monsterDNSCreate");
+  if (button.disabled) return;
+
+  const status = get("monsterDNSStatus");
+  const results = get("monsterDNSResults");
+  const names = get("monsterDNSNames");
+  const count = Number(get("monsterDNSCount").value);
+  button.disabled = true;
+  status.textContent = "Creating records…";
+  results.replaceChildren();
+  names.value = "";
+
+  try {
+    const response = await fetch("http://127.0.0.1:43129/records", {
+      method: "POST",
+      credentials: "omit",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MonsterDNS-Code": get("monsterDNSCode").value.trim()
+      },
+      body: JSON.stringify({ ip: get("monsterDNSIP").value.trim(), count }),
+      signal: AbortSignal.timeout(60000)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Record creation failed.");
+
+    for (const record of data.records) {
+      const item = document.createElement("li");
+      item.textContent = record.hostname + " — " + record.status;
+      results.append(item);
+    }
+
+    const created = data.records.filter(record => record.created);
+    names.value = created.map(record => record.hostname).join("\n");
+    status.textContent = created.length + " of " + count + " records confirmed by dynv6.";
+  } catch (error) {
+    status.textContent = error.name === "TypeError" || error.name === "TimeoutError"
+      ? "Could not get a reply. Check PowerShell and your dynv6 zone before retrying."
+      : error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+
 const el = id => document.getElementById(id);
 let batch;
 
