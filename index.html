@@ -53,6 +53,7 @@
     <button class="nav" data-view="discord">◌ Discord</button>
     <button class="nav" data-view="publisher">↗ Surge Publisher</button>
     <a class="converter-nav" href="./s3.html">⇄ HTML ↔ SVG Converter</a>
+    <a class="converter-nav" href="./freedns-batch.html">◈ FreeDNS Batch</a>
     <button class="nav" data-view="about">ⓘ About</button>
   </nav>
 
@@ -515,6 +516,15 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     }
   };
+
+  function openLinkedView() {
+    const view = window.location.hash.slice(1);
+    const views = ["generator", "presets", "checker", "discord", "publisher", "about"];
+    if (views.includes(view)) setView(view);
+  }
+
+  window.addEventListener("hashchange", openLinkedView);
+  openLinkedView();
 
   discordServer.addEventListener("change", loadDiscord);
 
