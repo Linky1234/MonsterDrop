@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MonsterDrop · FreeDNS Batch</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #081824; color: #d9f4ff; font: 16px system-ui, sans-serif; }
+  main { width: min(900px, 94%); margin: 2rem auto; }
+  section, form { background: #102635; border: 1px solid #275368; border-radius: 12px; padding: 1.25rem; margin: 1rem 0; }
+  p { line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+  label { display: block; }
+  input, select, textarea { display: block; width: 100%; margin-top: .35rem; padding: .65rem; border: 1px solid #34657a; border-radius: 7px; color: inherit; background: #091d2a; font: inherit; }
+  button, .button { display: inline-block; padding: .65rem .9rem; margin: .5rem .35rem .5rem 0; border: 0; border-radius: 7px; background: #38e4d2; color: #08232b; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+  button:disabled { opacity: .55; cursor: default; }
+  a { color: #81d8ff; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  th, td { padding: .65rem; border-bottom: 1px solid #275368; }
+  .muted { color: #a5cad9; }
+</style>
+</head>
+<body>
+<main>
+  <a href="./index.html">← MonsterDrop</a>
+  <h1>FreeDNS Batch</h1>
+  <p>Prepare up to five A records. Choose a shared domain and enter the IPv4 address you want the names to point to.</p>
+
+  <form id="batchForm">
+    <div class="grid">
+      <label>Shared domain
+        <input id="domain" placeholder="proasist.cl" required>
+      </label>
+      <label>Destination IPv4 address
+        <input id="ip" placeholder="152.53.38.5" required>
+      </label>
+      <label>Count
+        <input id="count" type="number" min="1" max="5" value="5" required>
+      </label>
+      <label>Filter for follow-up
+        <select id="filter">
+          <option>Lightspeed</option>
+          <option>FortiGuard</option>
+          <option>GoGuardian</option>
+          <option>Linewize</option>
+          <option>Blocksi</option>
+          <option>Blocksi AI</option>
+          <option>Senso</option>
+          <option>LanSchool</option>
+          <option>Cisco Talos</option>
+        </select>
+      </label>
+    </div>
+    <button id="prepare" type="submit">Prepare Batch</button>
+    <p id="formStatus" role="status"></p>
+  </form>
+
+  <section id="batch" hidden>
+    <h2>Records to submit</h2>
+    <p id="instructions"></p>
+    <a class="button" href="https://freedns.afraid.org/subdomain/"
+       target="_blank" rel="noopener noreferrer">Open FreeDNS</a>
+    <button id="check" type="button">Check DNS</button>
+    <p id="checkStatus" role="status"></p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Subdomain field</th><th>Full hostname</th><th>DNS result</th></tr>
+        </thead>
+        <tbody id="records"></tbody>
+      </table>
+    </div>
+    <p id="handoff" class="muted"></p>
+    <label>DNS-matching URLs
+      <textarea id="urls" rows="5" readonly></textarea>
+    </label>
+    <button id="copy" type="button" disabled>Copy URLs</button>
+    <p id="copyStatus" role="status"></p>
+    <p class="muted">A DNS match confirms the IPv4 answer from Google Public DNS. HTTPS requires your server to accept the hostname and have a valid certificate for it.</p>
+  </section>
+</main>
+<script>
+"use strict";
+const el = id => document.getElementById(id);
+let batch;
+
+function readSettings() {
+  const domain = el("domain").value.trim().toLowerCase().replace(/\.$/, "");
+  const ip = el("ip").value.trim();
+  const count = Number(el("count").value);
+  const labels = domain.split(".");
+  const dnsLabel = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
+  if (domain.length > 242 || labels.length < 2 || !labels.every(label => dnsLabel.test(label))) {
+    throw new Error("Enter a domain such as example.com.");
+  }
+
+  const parts = ip.split(".");
+  if (parts.length !== 4 || !parts.every(part =>
+    /^(0|[1-9][0-9]{0,2})$/.test(part) && Number(part) <= 255
+  )) {
+    throw new Error("Enter a valid IPv4 address such as 192.0.2.10.");
+  }
+
+  if (!Number.isInteger(count) || count < 1 || count > 5) {
+    throw new Error("Choose between one and five names.");
+  }
+
+  return { domain, ip, count, filter: el("filter").value };
+}
+
+function makeNames(count) {
+  const names = new Set();
+  while (names.size < count) {
+    const bytes = crypto.getRandomValues(new Uint8Array(5));
+    const name = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    names.add(name);
+  }
+  return [...names];
+}
+
+async function lookup(hostname, ip) {
+  const query = new URL("https://dns.google/resolve");
+  query.searchParams.set("name", hostname);
+  query.searchParams.set("type", "A");
+
+  try {
+    const response = await fetch(query, {
+      credentials: "omit",
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!response.ok) throw new Error("DNS service error");
+    const result = await response.json();
+
+    if (result.Status === 3) return { text: "Name not found yet" };
+    if (result.Status !== 0) return { text: "DNS lookup inconclusive" };
+
+    const addresses = (result.Answer || [])
+      .filter(answer => answer.type === 1)
+      .map(answer => answer.data);
+
+    if (!addresses.length) return { text: "No IPv4 record yet" };
+    if (addresses.every(address => address === ip)) return { text: "IP matches", matches: true };
+    return { text: "DNS returned " + [...new Set(addresses)].join(", ") };
+  } catch {
+    return { text: "DNS lookup unavailable. Try again." };
+  }
+}
+
+el("batchForm").addEventListener("submit", event => {
+  event.preventDefault();
+  el("formStatus").textContent = "";
+
+  try {
+    const settings = readSettings();
+    const records = makeNames(settings.count).map(name => {
+      const hostname = name + "." + settings.domain;
+      const row = document.createElement("tr");
+      for (const value of [name, hostname, "Prepared"]) {
+        row.insertCell().textContent = value;
+      }
+      return { hostname, row };
+    });
+
+    batch = { ...settings, records };
+    el("records").replaceChildren(...records.map(record => record.row));
+    el("instructions").textContent =
+      "Add each row in FreeDNS as type A. Select " + batch.domain +
+      " and use " + batch.ip + " as the destination. Complete any prompts in FreeDNS.";
+    el("handoff").textContent =
+      "After DNS matches, copy the URLs into your filter checker and select " + batch.filter + ".";
+    el("batch").hidden = false;
+    el("checkStatus").textContent = "";
+    el("copyStatus").textContent = "";
+    el("urls").value = "";
+    el("copy").disabled = true;
+  } catch (error) {
+    el("formStatus").textContent = error.message;
+  }
+});
+
+el("check").addEventListener("click", async () => {
+  if (!batch) return;
+  el("prepare").disabled = true;
+  el("check").disabled = true;
+  el("copy").disabled = true;
+  el("urls").value = "";
+  el("copyStatus").textContent = "";
+  el("checkStatus").textContent = "Checking DNS…";
+
+  try {
+    const matches = await Promise.all(batch.records.map(async record => {
+      const result = await lookup(record.hostname, batch.ip);
+      record.row.cells[2].textContent = result.text;
+      return result.matches ? "https://" + record.hostname + "/" : null;
+    }));
+    const urls = matches.filter(Boolean);
+    el("urls").value = urls.join("\n");
+    el("copy").disabled = urls.length === 0;
+    el("checkStatus").textContent =
+      urls.length + " of " + batch.records.length + " match. Check again after pending records appear in DNS.";
+  } finally {
+    el("prepare").disabled = false;
+    el("check").disabled = false;
+  }
+});
+
+el("copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(el("urls").value);
+    el("copyStatus").textContent = "URLs copied.";
+  } catch {
+    el("urls").select();
+    el("copyStatus").textContent = "Press Ctrl+C to copy the selected URLs.";
+  }
+});
+</script>
+</body>
+</html>
