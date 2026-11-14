@@ -720,16 +720,60 @@ function renderPage() {
   $("linkList").replaceChildren(fragment);
 }
 
-async function copyText(value, button) {
-  const original = button.textContent;
+function showManualCopy(value) {
+  const dialog = document.createElement("dialog");
+  dialog.setAttribute("aria-labelledby", "manualCopyTitle");
+  dialog.style.width = "min(90%, 48rem)";
+  dialog.style.color = "#e7faff";
+  dialog.style.background = "#102735";
+  dialog.style.border = "1px solid #3b6879";
+  dialog.style.borderRadius = "10px";
 
+  const title = document.createElement("h2");
+  title.id = "manualCopyTitle";
+  title.textContent = "Copy links manually";
+
+  const instructions = document.createElement("p");
+  instructions.id = "manualCopyInstructions";
+  instructions.textContent =
+    "Press Ctrl+C (Windows) or Command+C (Mac) to copy the selected text.";
+
+  const field = document.createElement("textarea");
+  field.setAttribute("aria-label", "Links to copy");
+  field.setAttribute("aria-describedby", instructions.id);
+  field.readOnly = true;
+  field.rows = 8;
+  field.value = value;
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "secondary";
+  close.textContent = "Done";
+  close.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => dialog.remove());
+
+  dialog.append(title, instructions, field, close);
+  document.body.append(dialog);
+  dialog.showModal();
+  field.focus();
+  field.select();
+}
+
+async function writeClipboard(value) {
   try {
     await navigator.clipboard.writeText(value);
-    button.textContent = "Copied!";
+    return true;
   } catch {
-    button.textContent = "Copy failed";
+    showManualCopy(value);
+    return false;
   }
+}
 
+async function copyText(value, button) {
+  if (!await writeClipboard(value)) return;
+
+  const original = button.textContent;
+  button.textContent = "Copied!";
   setTimeout(() => {
     button.textContent = original;
   }, 1500);
@@ -946,8 +990,9 @@ $("copyAll")?.addEventListener("click", async () => {
       urls.push(url);
     }
 
-    await navigator.clipboard.writeText(urls.join("\n"));
-    status.textContent = "Copied all " + count.toLocaleString() + " links.";
+    if (await writeClipboard(urls.join("\n"))) {
+      status.textContent = "Copied all " + count.toLocaleString() + " links.";
+    }
   } catch {
     status.textContent = "Copy failed. Check that your browser allows clipboard access and try again.";
   } finally {
