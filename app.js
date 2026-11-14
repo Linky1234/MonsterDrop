@@ -663,6 +663,8 @@ function renderPage() {
   const end = Math.min(start + pageSize, total);
 
   $("results").hidden = false;
+  const copyAllStatus = $("copyAllStatus");
+  if (copyAllStatus) copyAllStatus.textContent = "";
 
   $("resultsSummary").textContent =
     `${total.toLocaleString()} candidate links · ` +
@@ -915,6 +917,42 @@ $("copyPage").addEventListener("click", () => {
   }
 
   copyText(urls.join("\n"), $("copyPage"));
+});
+
+$("copyAll")?.addEventListener("click", async () => {
+  const button = $("copyAll");
+  const status = $("copyAllStatus");
+  const count = totalLinks();
+  if (!count || button.disabled) return;
+
+  button.disabled = true;
+  status.textContent = "";
+
+  try {
+    const urls = [];
+    const maxCharacters = 16 * 1024 * 1024;
+    let characters = 0;
+
+    for (let index = 0; index < count; index++) {
+      const url = getLinkAt(index).url;
+      characters += url.length + (index > 0 ? 1 : 0);
+
+      if (characters > maxCharacters) {
+        status.textContent =
+          "This batch is too large to copy at once. Use Copy Page or generate a smaller batch.";
+        return;
+      }
+
+      urls.push(url);
+    }
+
+    await navigator.clipboard.writeText(urls.join("\n"));
+    status.textContent = "Copied all " + count.toLocaleString() + " links.";
+  } catch {
+    status.textContent = "Copy failed. Check that your browser allows clipboard access and try again.";
+  } finally {
+    button.disabled = false;
+  }
 });
 
 $("clear").addEventListener("click", () => {
