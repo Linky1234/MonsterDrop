@@ -129,6 +129,11 @@ function updateEndingFields() {
 
   $("randomDigitsField").hidden =
     mode !== "random";
+
+  for (const id of ["queryTemplateField", "queryCountField"]) {
+    const field = $(id);
+    if (field) field.hidden = mode !== "query";
+  }
 }
 
 $("endingMode").addEventListener(
@@ -142,6 +147,22 @@ function readEndingSettings() {
   const start = Number($("startNumber").value);
   const count = Number($("endingCount").value);
   const digits = Number($("randomDigits").value);
+
+  if (mode === "query") {
+    const template = $("queryTemplate").value.trim().replace(/^\?/, "");
+    const pairs = [...new URLSearchParams(template)];
+    const variants = Number($("queryCount").value);
+
+    if (pairs.some(([key]) => !key) || !pairs.some(([, value]) => value.includes("{n}"))) {
+      throw new Error("Enter query parameters with {n} in at least one value.");
+    }
+
+    if (!Number.isSafeInteger(variants) || variants < 1 || variants > MAX_LINKS) {
+      throw new Error("Enter a valid number of query variants.");
+    }
+
+    return { mode, count: variants, pairs };
+  }
 
   if (
     !["none", "custom", "sequential", "random"]
@@ -218,6 +239,15 @@ function readEndingSettings() {
 }
 
 function endingAt(index) {
+  if (endingSettings.mode === "query") {
+    const params = new URLSearchParams(
+      endingSettings.pairs.map(([key, value]) => [
+        key, value.replaceAll("{n}", String(index + 1))
+      ])
+    );
+    return "?" + params.toString();
+  }
+
   if (endingSettings.mode === "none") {
     return "";
   }
@@ -735,6 +765,10 @@ $("generatorForm").addEventListener(
       }
 
       const nextEnding = readEndingSettings();
+
+      if (nextEnding.mode === "query" && selected.every(name => name === "Surge-style")) {
+        throw new Error("Select a file provider such as cdn.jsdelivr.net for query variants.");
+      }
 
       const npmRequired =
         selected.includes("unpkg.com") ||
