@@ -132,7 +132,14 @@ function updateEndingFields() {
 
   for (const id of ["queryTemplateField", "queryCountField"]) {
     const field = $(id);
-    if (field) field.hidden = mode !== "query";
+    if (field) field.hidden = id === "queryCountField"
+      ? !["query", "randomQuery"].includes(mode)
+      : mode !== "query";
+  }
+
+  for (const id of ["randomQueryTemplateField", "queryShuffleField"]) {
+    const field = $(id);
+    if (field) field.hidden = mode !== "randomQuery";
   }
 }
 
@@ -147,6 +154,10 @@ function readEndingSettings() {
   const start = Number($("startNumber").value);
   const count = Number($("endingCount").value);
   const digits = Number($("randomDigits").value);
+
+  if (mode === "randomQuery") {
+    return readRandomQuerySettings();
+  }
 
   if (mode === "query") {
     const template = $("queryTemplate").value.trim().replace(/^\?/, "");
@@ -238,7 +249,87 @@ function readEndingSettings() {
   };
 }
 
+function readRandomQuerySettings() {
+  const input = $("randomQueryTemplate").value.trim().replace(/^\?/, "");
+  const pairs = [...new URLSearchParams(input)];
+  const count = Number($("queryCount").value);
+
+  if (pairs.some(([key]) => !key)) {
+    throw new Error("Give each query parameter a name.");
+  }
+  if (new Set(pairs.map(([key]) => key)).size !== pairs.length) {
+    throw new Error("Use each parameter name once in a random query template.");
+  }
+  if (!Number.isSafeInteger(count) || count < 1 || count > MAX_LINKS) {
+    throw new Error("Enter a valid number of query variants.");
+  }
+
+  let uniqueRange;
+  const parameters = pairs.map(([key, value]) => ({
+    key,
+    parts: value.split(/(\{rand:[^{}]*\})/).map((part, position) => {
+      if (position % 2 === 0) return part;
+      const match = /^\{rand:([1-9]|1[0-2])\}$/.exec(part);
+
+      if (!match) {
+        throw new Error("Use a digit length from 1 to 12, like {rand:8}.");
+      }
+
+      const digits = Number(match[1]);
+      const range = 10 ** digits;
+      uniqueRange = Math.max(uniqueRange ?? 0, range);
+
+      // A step coprime with the range visits every value before repeating.
+      const step = 10 * Math.floor(Math.random() * 100000) +
+        [1, 3, 7, 9][Math.floor(Math.random() * 4)];
+      return { digits, range, step, offset: Math.floor(Math.random() * range) };
+    })
+  }));
+
+  if (!uniqueRange) {
+    throw new Error("Put {rand:8} or another random number placeholder in a parameter value.");
+  }
+  if (count > uniqueRange) {
+    throw new Error("Use more digits in a random value or request fewer variants.");
+  }
+
+  return {
+    mode: "randomQuery",
+    count,
+    parameters,
+    shuffle: $("queryShuffle").checked,
+    seed: Math.floor(Math.random() * 0x100000000)
+  };
+}
+
+function randomQueryAt(index) {
+  const pairs = endingSettings.parameters.map(({ key, parts }) => [
+    key,
+    parts.map(part => {
+      if (typeof part === "string") return part;
+      const value = (part.offset + index * part.step) % part.range;
+      return String(value).padStart(part.digits, "0");
+    }).join("")
+  ]);
+
+  if (endingSettings.shuffle) {
+    let state = (endingSettings.seed ^ Math.imul(index + 1, 0x9e3779b1)) >>> 0;
+
+    for (let position = pairs.length - 1; position > 0; position--) {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      const other = Math.floor(state / 0x100000000 * (position + 1));
+      [pairs[position], pairs[other]] = [pairs[other], pairs[position]];
+    }
+  }
+
+  return "?" + new URLSearchParams(pairs).toString();
+}
+
 function endingAt(index) {
+  if (endingSettings.mode === "randomQuery") {
+    return randomQueryAt(index);
+  }
+
   if (endingSettings.mode === "query") {
     const params = new URLSearchParams(
       endingSettings.pairs.map(([key, value]) => [
@@ -812,7 +903,7 @@ $("generatorForm").addEventListener(
 
       const nextEnding = readEndingSettings();
 
-      if (nextEnding.mode === "query" && selected.every(name => name === "Surge-style")) {
+      if (["query", "randomQuery"].includes(nextEnding.mode) && selected.every(name => name === "Surge-style")) {
         throw new Error("Select a file provider such as cdn.jsdelivr.net for query variants.");
       }
 
