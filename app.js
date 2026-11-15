@@ -107,12 +107,22 @@ function setStatus(message) {
   $("scanStatus").textContent = message;
 }
 
-function updateMode() {
-  $("fileField").hidden =
-    $("mode").value !== "file";
+function updateMode(selected = selectedNames()) {
+  const s3Only = selected.length === 1 && selected[0] === "Amazon S3";
+  const mode = $("mode");
+  if (s3Only) mode.value = "file";
+  mode.disabled = s3Only;
+  $("fileField").hidden = mode.value !== "file";
+  $("repo").required = !s3Only;
+  $("branch").required = !s3Only;
+
+  for (const id of ["repoField", "branchField"]) {
+    const field = $(id);
+    if (field) field.hidden = s3Only;
+  }
 }
 
-$("mode").addEventListener("change", updateMode);
+$("mode").addEventListener("change", () => updateMode());
 
 function updateEndingFields() {
   const mode = $("endingMode").value;
@@ -121,7 +131,7 @@ function updateEndingFields() {
     mode !== "custom";
 
   $("startNumberField").hidden =
-    mode !== "sequential";
+    !["sequential", "bareQuery"].includes(mode);
 
   $("endingCountField").hidden =
     mode !== "sequential" &&
@@ -133,7 +143,7 @@ function updateEndingFields() {
   for (const id of ["queryTemplateField", "queryCountField"]) {
     const field = $(id);
     if (field) field.hidden = id === "queryCountField"
-      ? !["query", "randomQuery"].includes(mode)
+      ? !["query", "randomQuery", "bareQuery"].includes(mode)
       : mode !== "query";
   }
 
@@ -154,6 +164,16 @@ function readEndingSettings() {
   const start = Number($("startNumber").value);
   const count = Number($("endingCount").value);
   const digits = Number($("randomDigits").value);
+
+  if (mode === "bareQuery") {
+    const variants = Number($("queryCount").value);
+    if (!Number.isSafeInteger(variants) || variants < 1 || variants > MAX_LINKS ||
+        !Number.isSafeInteger(start) || start < 0 ||
+        !Number.isSafeInteger(start + (variants - 1))) {
+      throw new Error("Enter a valid starting number and number of query variants.");
+    }
+    return { mode, count: variants, start };
+  }
 
   if (mode === "randomQuery") {
     return readRandomQuerySettings();
@@ -326,6 +346,10 @@ function randomQueryAt(index) {
 }
 
 function endingAt(index) {
+  if (endingSettings.mode === "bareQuery") {
+    return "?" + (endingSettings.start + index);
+  }
+
   if (endingSettings.mode === "randomQuery") {
     return randomQueryAt(index);
   }
@@ -390,10 +414,14 @@ function updateExtras() {
 
   $("npmField").hidden = !npm;
   $("s3Field").hidden = !s3;
+  const s3StyleField = $("s3StyleField");
+  if (s3StyleField) s3StyleField.hidden = !s3;
   $("surgeField").hidden = !surge;
 
   $("extraFields").hidden =
     !(npm || s3 || surge);
+
+  updateMode(selected);
 }
 
 function createOption(name) {
@@ -571,10 +599,16 @@ async function scanRepository(owner, repo, branch) {
 // LINK GENERATION
 
 function buildLink(provider, file) {
+  const path = encodePath(file);
+  if (provider === "Amazon S3") {
+    return options.s3Style === "path"
+      ? `https://s3.amazonaws.com/${options.s3}/${path}`
+      : `https://${options.s3}.s3.amazonaws.com/${path}`;
+  }
+
   const owner = encodeURIComponent(repoInfo.owner);
   const repo = encodeURIComponent(repoInfo.repo);
   const branch = encodeURIComponent(repoInfo.branch);
-  const path = encodePath(file);
 
   const ghPath =
     `${owner}/${repo}@${branch}/${path}`;
@@ -610,10 +644,6 @@ function buildLink(provider, file) {
 
   if (provider === "esm.sh") {
     return `https://esm.sh/${options.npm}/${path}`;
-  }
-
-  if (provider === "Amazon S3") {
-    return `https://${options.s3}.s3.amazonaws.com/${path}`;
   }
 
   if (provider === "Surge-style") {
@@ -886,13 +916,6 @@ $("generatorForm").addEventListener(
     button.textContent = "Scanning...";
 
     try {
-      const parsed = parseRepository(
-        $("repo").value
-      );
-
-      const branch = $("branch").value.trim();
-      validateBranch(branch);
-
       const selected = selectedNames();
 
       if (!selected.length) {
@@ -901,9 +924,14 @@ $("generatorForm").addEventListener(
         );
       }
 
+      const s3Only = selected.length === 1 && selected[0] === "Amazon S3";
+      const branch = $("branch").value.trim();
+      const parsed = s3Only ? null : parseRepository($("repo").value);
+      if (!s3Only) validateBranch(branch);
+
       const nextEnding = readEndingSettings();
 
-      if (["query", "randomQuery"].includes(nextEnding.mode) && selected.every(name => name === "Surge-style")) {
+      if (["query", "randomQuery", "bareQuery"].includes(nextEnding.mode) && selected.every(name => name === "Surge-style")) {
         throw new Error("Select a file provider such as cdn.jsdelivr.net for query variants.");
       }
 
@@ -930,6 +958,7 @@ $("generatorForm").addEventListener(
       const nextOptions = {
         npm,
         s3: $("s3Bucket").value.trim(),
+        s3Style: $("s3Style")?.value ?? "virtual",
         surge: $("surgeDomain").value.trim()
       };
 
@@ -964,7 +993,7 @@ $("generatorForm").addEventListener(
 
       let discoveredFiles;
 
-      if ($("mode").value === "repository") {
+      if (!s3Only && $("mode").value === "repository") {
         setStatus("Scanning public repository...");
 
         discoveredFiles = await scanRepository(
@@ -996,7 +1025,7 @@ $("generatorForm").addEventListener(
 
       files = discoveredFiles;
       activeProviders = selected;
-      repoInfo = { ...parsed, branch };
+      repoInfo = s3Only ? null : { ...parsed, branch };
       options = nextOptions;
       endingSettings = nextEnding;
       maxLinks = limit;
