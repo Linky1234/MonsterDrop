@@ -791,6 +791,25 @@ function renderPage() {
     `${total.toLocaleString()} candidate links · ` +
     `${files.length.toLocaleString()} files`;
 
+  const hostingNote = $("hostingNote");
+  if (hostingNote) {
+    const usesJsDelivr = fileProviders().some(provider =>
+      provider.endsWith(".jsdelivr.net") || provider === "jsdelivr.b-cdn.net"
+    );
+    const notes = [];
+
+    if (usesJsDelivr && files.some(file => /\.html?$/i.test(file))) {
+      notes.push("jsDelivr serves GitHub HTML files as source text. Use a web host to open the page.");
+    }
+
+    if (activeProviders.includes("Amazon S3")) {
+      notes.push("S3 links require the file to already exist and be publicly readable in that bucket.");
+    }
+
+    hostingNote.textContent = notes.join(" ");
+    hostingNote.hidden = notes.length === 0;
+  }
+
   $("pageLabel").textContent =
     `Page ${currentPage + 1} of ${pages}`;
 
