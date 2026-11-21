@@ -7,7 +7,7 @@
 <title>Clever</title>
 <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAZlBMVEUUZP////8AWv8AX/8AXP8OYv8AWP/q8f/y9//3+v/7/f+mwP89ev9olP+Orv+xx/9tmP+7zv92nv/a5f9Sh/8ca//f6f8lb/9djf8ydP/H1//V4v+fu//l7v9Ff/+Bpf+VtP/P3f+iYcyoAAACOElEQVRYhe1X2XKrMAw1kmXCEpYEQ3AohP//yQtNW5tgO4TO3Pah5ykz9lGko8WCsT/8bhAhhwmcI9HrdARKj1mS53mXHVMCfO3PgRVlGGiE5UnCdjegSQ7BI6K8F9tMcJav2HeodosJcYoc/And0ziISjd9wrn1q4ny7OUHwaHivv+X4RN+EMQXtwVib0/5E3pnFHhdOVyf61VGI+lQUiRLX8uiQT4VclOUy8Rc7bnAy4LeSbj3wNQTILOFicwmA6EpwDld1AxBo0wLrcUFnhkXSv4oFJkB5o3FATDEKoXlgug+TqeKtilwMkWyaUTivUjPF3tDgE5h3NjTNJdJeFoF93HYaAduVgdmLy8dcUcN4PDFPzjo8y13FYNuwsTlgA9mEVQ7JihjMv7kh3tGMKP0y4HRluSnwEpX2R4JzEbqfsjAd0P4tohkpBF3pdEopH5XIYEeOPtUNOaRJwbyHLW6na0jcwZWg2MaTAD9pkXM1fP1NI9czyvXAyFQ9qF1H6sqtZ8SGpM/sd0RnzLlzOoFvwU+CyS0zPHN+riR+TIruUzmw9qS2gxgYV45DHozm36dFu++o1TEcjcKk4rNiyJnfbdcG2rXaKY6WCKqRzXWq53J9jLeDcj1dmeBZ0XBdoOFwtcr2D5bcuKjv9eQKS//rfctae86QObh57Rh6X5YRgxcq23jjkRfxmv6eNm+8xPIYTQTEl2z9rVPBuIgqyEplVJlN1QSXMXnAyKAEAI4vva58of/jX9wYhfxu8uIYwAAAABJRU5ErkJggg==">
 <link rel="stylesheet" href="./style.css?v=65">
-<script src="./app.js?v=70" defer></script>
+<script src="./app.js?v=71" defer></script>
 <style>
 .converter-nav {
   display:block;
@@ -243,6 +243,29 @@
 
     <p id="hostingNote" class="muted" hidden></p>
     <p id="copyAllStatus" class="muted" role="status"></p>
+    <div class="panel">
+      <h2>Send to Discord Bot</h2>
+      <div class="form-grid">
+        <label>Links per selected provider, up to
+          <input id="discordPerProvider" type="number" min="1" max="100000000" value="1000">
+        </label>
+        <label>Discord helper code
+          <input id="discordSenderCode" type="password" autocomplete="off"
+            placeholder="Code printed by monsterdrop-discord.cjs">
+        </label>
+      </div>
+      <p class="muted">
+        Sends available results from every page, up to your quantity per provider.
+        For 1,000 per provider, generate at least 1,000 variants and raise Maximum Links to cover all providers.
+      </p>
+      <p class="muted">
+        Destination channel: 1499944531016028342.
+        The bot posts a summary and attaches monsterdrop-links.txt.
+      </p>
+      <button id="sendDiscord" type="button" class="primary">Send to Discord Bot</button>
+      <p id="discordSendStatus" class="muted" role="status"></p>
+    </div>
+
     <div id="linkList" class="link-list"></div>
 
     <div class="pagination">
