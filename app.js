@@ -1139,6 +1139,133 @@ $("copyAll")?.addEventListener("click", async () => {
   }
 });
 
+// DISCORD BATCH SENDER
+
+let pendingDiscordBatch = null;
+
+function collectDiscordGroups(perProvider) {
+  const count = totalLinks();
+  if (!count) throw new Error("Generate links first.");
+
+  const groups = [];
+  const providers = fileProviders();
+  const endings = endingSettings.count;
+  const block = providers.length * endings;
+  const surgeOffset = activeProviders.includes("Surge-style") ? 1 : 0;
+  let characters = 0;
+
+  if (surgeOffset) {
+    const homepage = getLinkAt(0).url;
+    groups.push({ provider: "Surge-style", links: [homepage] });
+    characters += homepage.length;
+  }
+
+  for (const [providerIndex, provider] of providers.entries()) {
+    const links = [];
+    for (let fileIndex = 0; fileIndex < files.length && links.length < perProvider; fileIndex++) {
+      const start = surgeOffset + fileIndex * block + providerIndex * endings;
+      const end = Math.min(start + endings, count, start + perProvider - links.length);
+      if (start >= count) break;
+
+      for (let index = start; index < end; index++) {
+        const value = getLinkAt(index).url;
+        characters += value.length;
+        if (characters > 8 * 1024 * 1024) {
+          throw new Error("The batch exceeds 8 MiB. Choose fewer links per provider.");
+        }
+        links.push(value);
+      }
+    }
+
+    if (!links.length) {
+      throw new Error(
+        "Maximum Links excludes " + provider + ". Increase Maximum Links and generate again."
+      );
+    }
+    groups.push({ provider, links });
+  }
+
+  return groups;
+}
+
+async function discordHelperRequest(path, code, batch) {
+  const response = await fetch("http://127.0.0.1:43130" + path, {
+    method: batch ? "POST" : "GET",
+    credentials: "omit",
+    headers: {
+      "X-MonsterDrop-Discord-Code": code,
+      ...(batch ? { "Content-Type": "application/json" } : {})
+    },
+    ...(batch ? { body: JSON.stringify(batch) } : {}),
+    signal: AbortSignal.timeout(30000)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Discord helper request failed.");
+  return result.job;
+}
+
+$("sendDiscord")?.addEventListener("click", async () => {
+  const button = $("sendDiscord");
+  const status = $("discordSendStatus");
+  const code = $("discordSenderCode").value.trim();
+  if (button.disabled) return;
+  if (!code) {
+    status.textContent = "Start the Discord helper and paste its helper code.";
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    if (!pendingDiscordBatch) {
+      const perProvider = Number($("discordPerProvider").value);
+      if (!Number.isSafeInteger(perProvider) || perProvider < 1 || perProvider > MAX_LINKS) {
+        throw new Error("Choose a positive number of links per provider.");
+      }
+      const batch = {
+        id: crypto.randomUUID(),
+        perProvider,
+        groups: collectDiscordGroups(perProvider)
+      };
+      if (new Blob([JSON.stringify(batch)]).size > 8 * 1024 * 1024) {
+        throw new Error("The batch exceeds 8 MiB. Choose fewer links per provider.");
+      }
+      pendingDiscordBatch = { code, batch };
+    }
+
+    if (pendingDiscordBatch.code !== code) {
+      throw new Error("The helper code changed. Check Discord, then refresh this page to start a new batch.");
+    }
+
+    const { batch } = pendingDiscordBatch;
+    const total = batch.groups.reduce((sum, group) => sum + group.links.length, 0);
+    status.textContent = "Sending " + total.toLocaleString() + " results to Discord…";
+    let job = await discordHelperRequest("/send", code, batch);
+
+    while (job.state === "sending") {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      job = await discordHelperRequest("/job?id=" + encodeURIComponent(batch.id), code);
+    }
+
+    pendingDiscordBatch = null;
+    button.textContent = "Send to Discord Bot";
+    if (job.state !== "sent") throw new Error(job.error || "Discord delivery failed.");
+
+    status.replaceChildren();
+    const link = document.createElement("a");
+    link.href = job.messageURL;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Open the " + job.total.toLocaleString() + "-result batch in Discord";
+    status.append(link);
+  } catch (error) {
+    status.textContent = error.message +
+      (pendingDiscordBatch ? " Check the channel, then retry the same batch if needed." : "");
+    button.textContent = pendingDiscordBatch ? "Retry Same Batch" : "Send to Discord Bot";
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $("clear").addEventListener("click", () => {
   generationId++;
   $("generatorForm").reset();
