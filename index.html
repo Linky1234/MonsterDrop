@@ -487,6 +487,13 @@
       repositories are supported; sites requiring a build must be built first.
     </p>
 
+    <p class="muted">
+      When the batch ends, published links are automatically attached in Discord channel
+      1501072686921683034. Failed deployments are excluded; inconclusive HTTP checks
+      are listed separately. Set DISCORD_BOT_TOKEN privately in the Surge publisher's
+      Render environment to enable delivery.
+    </p>
+
     <div class="actions">
       <button id="publishSites" class="primary"
         type="submit" disabled>Publish sites</button>
@@ -660,7 +667,7 @@ window.addEventListener("DOMContentLoaded", () => {
     el("helperCode").disabled = running;
 
     el("publishStatus").textContent =
-      (running ? "Publishing" : "Batch " + job.state) +
+      (running ? (job.phase === "notifying" ? "Sending results to Discord" : "Publishing") : "Batch " + job.state) +
       ": " + job.results.length + " of " + job.count +
       (job.error ? ". " + job.error : "") +
       (
@@ -668,6 +675,26 @@ window.addEventListener("DOMContentLoaded", () => {
           ? (helperURL.startsWith("https:") ? ". Keep this tab open to monitor progress." : ". Keep PowerShell open.")
           : ". HTTP checks do not test every app feature."
       );
+
+    if (job.discord) {
+      const messages = {
+        waiting: " Discord will receive published links when the batch ends.",
+        sending: " Sending the results to Discord…",
+        sent: " Published links sent to Discord.",
+        skipped: " No published links to send.",
+        failed: " Discord delivery failed: " + job.discord.error + " Published links remain available below."
+      };
+      el("publishStatus").textContent += messages[job.discord.state] || "";
+      if (job.discord.state === "sent" &&
+          /^https:\/\/discord\.com\/channels\/1468487779456389163\/1501072686921683034\/\d+$/.test(job.discord.messageURL || "")) {
+        const link = document.createElement("a");
+        link.href = job.discord.messageURL;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = " Open Discord message";
+        el("publishStatus").append(link);
+      }
+    }
 
     const rows = job.results.map(item => {
       const row = document.createElement("div");
