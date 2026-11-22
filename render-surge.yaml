@@ -14,5 +14,7 @@ services:
         value: "1"
       - key: SURGE_TOKEN
         sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
       - key: MONSTERDROP_SURGE_KEY
         generateValue: true
