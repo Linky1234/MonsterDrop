@@ -1188,20 +1188,34 @@ function collectDiscordGroups(perProvider) {
   return groups;
 }
 
-async function discordHelperRequest(path, code, batch) {
-  const response = await fetch("http://127.0.0.1:43130" + path, {
+function discordServerURL(value) {
+  let url;
+  try { url = new URL(value); } catch { throw new Error("Paste your bot server's full HTTPS URL."); }
+  if ((url.protocol !== "https:" && url.origin !== "http://127.0.0.1:43130") ||
+      url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("Use the HTTPS server address without a path, or http://127.0.0.1:43130 for the local helper.");
+  }
+  return url.origin;
+}
+
+async function discordHelperRequest(path, code, batch, baseURL, instance) {
+  const response = await fetch(baseURL + path, {
     method: batch ? "POST" : "GET",
     credentials: "omit",
     headers: {
       "X-MonsterDrop-Discord-Code": code,
+      ...(instance ? { "X-MonsterDrop-Server-Instance": instance } : {}),
       ...(batch ? { "Content-Type": "application/json" } : {})
     },
     ...(batch ? { body: JSON.stringify(batch) } : {}),
-    signal: AbortSignal.timeout(30000)
+    signal: AbortSignal.timeout(120000)
   });
-  const result = await response.json();
+  let result;
+  try { result = await response.json(); } catch {
+    throw new Error("The bot server is not ready. Open its URL, wait for it to wake up, then retry.");
+  }
   if (!response.ok) throw new Error(result.error || "Discord helper request failed.");
-  return result.job;
+  return path === "/session" ? result.instance : result.job;
 }
 
 $("sendDiscord")?.addEventListener("click", async () => {
@@ -1210,12 +1224,13 @@ $("sendDiscord")?.addEventListener("click", async () => {
   const code = $("discordSenderCode").value.trim();
   if (button.disabled) return;
   if (!code) {
-    status.textContent = "Start the Discord helper and paste its helper code.";
+    status.textContent = "Paste your connection key from Render, or the local helper code.";
     return;
   }
 
   button.disabled = true;
   try {
+    const baseURL = discordServerURL($("discordServerURL").value.trim());
     if (!pendingDiscordBatch) {
       const perProvider = Number($("discordPerProvider").value);
       if (!Number.isSafeInteger(perProvider) || perProvider < 1 || perProvider > MAX_LINKS) {
@@ -1229,21 +1244,25 @@ $("sendDiscord")?.addEventListener("click", async () => {
       if (new Blob([JSON.stringify(batch)]).size > 8 * 1024 * 1024) {
         throw new Error("The batch exceeds 8 MiB. Choose fewer links per provider.");
       }
-      pendingDiscordBatch = { code, batch };
+      pendingDiscordBatch = { code, batch, baseURL };
     }
 
-    if (pendingDiscordBatch.code !== code) {
-      throw new Error("The helper code changed. Check Discord, then refresh this page to start a new batch.");
+    if (pendingDiscordBatch.code !== code || pendingDiscordBatch.baseURL !== baseURL) {
+      throw new Error("The server or connection key changed. Check Discord, then refresh this page to start a new batch.");
     }
 
     const { batch } = pendingDiscordBatch;
     const total = batch.groups.reduce((sum, group) => sum + group.links.length, 0);
-    status.textContent = "Sending " + total.toLocaleString() + " results to Discord…";
-    let job = await discordHelperRequest("/send", code, batch);
+    status.textContent = "Connecting and sending " + total.toLocaleString() + " results. A sleeping free server may take about a minute…";
+    if (baseURL !== "http://127.0.0.1:43130" && !pendingDiscordBatch.instance) {
+      pendingDiscordBatch.instance = await discordHelperRequest("/session", code, null, baseURL);
+      if (!pendingDiscordBatch.instance) throw new Error("Update the bot server before sending.");
+    }
+    let job = await discordHelperRequest("/send", code, batch, baseURL, pendingDiscordBatch.instance);
 
     while (job.state === "sending") {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      job = await discordHelperRequest("/job?id=" + encodeURIComponent(batch.id), code);
+      job = await discordHelperRequest("/job?id=" + encodeURIComponent(batch.id), code, null, baseURL);
     }
 
     pendingDiscordBatch = null;
