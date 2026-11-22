@@ -436,20 +436,27 @@
   </div>
 
   <div class="panel">
-    <label>Helper code
+    <label>Publisher server URL
+      <input id="publisherServerURL" type="url" value="http://127.0.0.1:43127"
+        placeholder="https://your-surge-publisher.onrender.com" autocomplete="off">
+    </label>
+    <label>Connection key
       <input id="helperCode" type="password" autocomplete="off"
-        placeholder="Copy the helper code from PowerShell">
+        placeholder="MONSTERDROP_SURGE_KEY from Render, or local helper code">
     </label>
 
     <div class="actions">
       <button id="connectHelper" class="secondary" type="button">
-        Connect helper
+        Connect publisher
       </button>
     </div>
 
     <p id="helperStatus" role="status" class="muted">
-      Start the helper on this computer first.
-      Use the code it prints, not your Surge password.
+      For online publishing, deploy render-surge.yaml as a separate Render Blueprint.
+      Set SURGE_TOKEN privately in Render. Paste that service's HTTPS URL above and
+      its MONSTERDROP_SURGE_KEY as the connection key. Keep this tab open during batches;
+      your computer's terminal can stay closed when using the online server.
+      For local publishing, use the localhost URL and the code printed by the helper.
     </p>
   </div>
 
@@ -600,7 +607,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   discordServer.addEventListener("change", loadDiscord);
 
-  const helperURL = "http://127.0.0.1:43127";
+  let helperURL = "";
   const el = id => document.getElementById(id);
 
   let helperToken = "";
@@ -621,10 +628,13 @@ window.addEventListener("DOMContentLoaded", () => {
       ...(data
         ? { body: JSON.stringify(data) }
         : {}),
-      signal: AbortSignal.timeout(20000)
+      signal: AbortSignal.timeout(120000)
     });
 
-    const result = await response.json();
+    let result;
+    try { result = await response.json(); } catch {
+      throw new Error("The publisher server is not ready. Wait for it to wake up, then reconnect.");
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -646,6 +656,8 @@ window.addEventListener("DOMContentLoaded", () => {
       running || !helperToken;
 
     el("connectHelper").disabled = running;
+    el("publisherServerURL").disabled = running;
+    el("helperCode").disabled = running;
 
     el("publishStatus").textContent =
       (running ? "Publishing" : "Batch " + job.state) +
@@ -653,7 +665,7 @@ window.addEventListener("DOMContentLoaded", () => {
       (job.error ? ". " + job.error : "") +
       (
         running
-          ? ". Keep PowerShell open."
+          ? (helperURL.startsWith("https:") ? ". Keep this tab open to monitor progress." : ". Keep PowerShell open.")
           : ". HTTP checks do not test every app feature."
       );
 
@@ -730,11 +742,22 @@ window.addEventListener("DOMContentLoaded", () => {
 
     clearTimeout(pollTimer);
 
+    try {
+      const url = new URL(el("publisherServerURL").value.trim());
+      if ((url.protocol !== "https:" && url.origin !== "http://127.0.0.1:43127") ||
+          url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+        throw new Error("Use the HTTPS publisher address without a path, or the local helper URL.");
+      }
+      helperURL = url.origin;
+    } catch (error) {
+      el("helperStatus").textContent = error.message;
+      return;
+    }
     helperToken = el("helperCode").value.trim();
 
     if (!helperToken) {
       el("helperStatus").textContent =
-        "Paste the helper code from PowerShell.";
+        "Paste MONSTERDROP_SURGE_KEY from Render, or the local helper code.";
       return;
     }
 
@@ -744,16 +767,20 @@ window.addEventListener("DOMContentLoaded", () => {
     el("publishSites").disabled = true;
 
     el("helperStatus").textContent =
-      "Connecting… Allow local-device access if your browser asks.";
+      "Connecting… A sleeping online server may take about a minute.";
 
     try {
       const result = await helperRequest("/health");
 
       el("helperStatus").textContent =
-        "Helper connected. Your Surge login stays on this computer.";
+        helperURL.startsWith("https:")
+          ? "Online publisher connected. PowerShell can stay closed."
+          : "Local helper connected. Keep PowerShell open.";
 
       el("publishSites").disabled = false;
       el("connectHelper").disabled = false;
+      el("publisherServerURL").disabled = false;
+      el("helperCode").disabled = false;
 
       if (result.job) {
         showJob(result.job);
@@ -763,8 +790,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       el("helperStatus").textContent =
         "Could not connect: " + error.message +
-        " Start the updated helper, check its code, " +
-        "and allow local-device access. " +
+        " Check the server URL, connection key, and Render deployment status. " +
         "Open MonsterDrop directly on GitHub Pages " +
         "if an embedded view blocks it.";
 
@@ -773,6 +799,14 @@ window.addEventListener("DOMContentLoaded", () => {
       connecting = false;
     }
   });
+
+  for (const id of ["publisherServerURL", "helperCode"]) {
+    el(id).addEventListener("input", () => {
+      helperToken = "";
+      el("publishSites").disabled = true;
+      el("helperStatus").textContent = "Connection settings changed. Click Connect publisher again.";
+    });
+  }
 
   el("publishForm").addEventListener("submit", async event => {
     event.preventDefault();
