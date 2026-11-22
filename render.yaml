@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: monsterdrop-discord
+    runtime: node
+    plan: free
+    buildCommand: node --check monsterdrop-discord.cjs
+    startCommand: node monsterdrop-discord.cjs
+    healthCheckPath: /health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: MONSTERDROP_HOSTED
+        value: "1"
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: MONSTERDROP_SEND_KEY
+        generateValue: true
