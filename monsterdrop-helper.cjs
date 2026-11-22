@@ -7,7 +7,8 @@ const { spawn } = require('node:child_process');
 const { createRequire } = require('node:module');
 const PORT = 43127;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const TOKEN = crypto.randomBytes(32).toString('hex');
+const HOSTED = process.env.MONSTERDROP_SURGE_HOSTED === '1';
+const TOKEN = HOSTED ? process.env.MONSTERDROP_SURGE_KEY : crypto.randomBytes(32).toString('hex');
 let busy = false;
 let job = null;
 const WEBSITE = 'https://linky1234.github.io';
@@ -16,14 +17,14 @@ function run(command, args, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
-    const timer = setTimeout(() => { child.kill(); reject(new Error('Command timed out. Check your Surge login in the terminal.')); }, 180000);
+    const timer = setTimeout(() => { child.kill(); reject(new Error('Command timed out. Check the publisher status before starting another batch.')); }, 180000);
     child.stdout.on('data', chunk => { output = (output + chunk).slice(-200000); });
     child.stderr.on('data', chunk => { output = (output + chunk).slice(-200000); });
     child.on('error', error => { clearTimeout(timer); reject(error); });
     child.on('close', code => {
       clearTimeout(timer);
       if (code === 0) resolve(output);
-      else reject(new Error('Command failed. Make sure Git is installed and run npx surge login first.'));
+      else reject(new Error('Command failed. Check Git, Surge credentials, account limits, and the repository branch. For a local helper, run npx surge login.'));
     });
   });
 }
@@ -100,11 +101,12 @@ async function verify(url) {
 }
 
 async function publish(data, onResult = () => {}) {
+  if (HOSTED && !process.env.SURGE_TOKEN) throw new Error('Set SURGE_TOKEN in the Render service environment.');
   const { repo, branch, file, count } = validate(data);
   const requireHere = createRequire(path.join(process.cwd(), 'package.json'));
   let surge;
   try { surge = requireHere.resolve('surge/bin/surge'); }
-  catch { throw new Error('Run npm install --no-save surge@0.56.0 in the helper folder first.'); }
+  catch { throw new Error('Install surge@0.56.0 in the publisher folder or check the Render build logs.'); }
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'monsterdrop-'));
   const results = [];
   try {
@@ -132,7 +134,13 @@ async function publish(data, onResult = () => {}) {
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 }
 
-function start() {
+function start({ port = HOSTED ? Number(process.env.PORT) || 10000 : PORT, publisher = publish } = {}) {
+  if (HOSTED && (!TOKEN || TOKEN.length < 32 || /\s/.test(TOKEN))) {
+    throw new Error('Set MONSTERDROP_SURGE_KEY to a private key of at least 32 characters.');
+  }
+  if (HOSTED && (!process.env.SURGE_TOKEN || /\s/.test(process.env.SURGE_TOKEN))) {
+    throw new Error('Set SURGE_TOKEN in the Render environment to your Surge token.');
+  }
   const server = http.createServer(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -141,11 +149,12 @@ function start() {
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
     };
-    if (req.headers.host !== '127.0.0.1:' + PORT) return send(403, { error: 'Invalid host.' });
+    if (HOSTED && req.method === 'GET' && req.url === '/ready') return send(200, { status: 'ok' });
+    if (!HOSTED && req.headers.host !== '127.0.0.1:' + server.address().port) return send(403, { error: 'Invalid host.' });
     const origin = req.headers.origin;
-    if (origin !== WEBSITE && origin !== ORIGIN) {
+    if (origin !== WEBSITE && (HOSTED || origin !== ORIGIN)) {
       if (!origin && req.method === 'GET' && req.url === '/') {
-        return send(200, { message: 'Helper running. Open MonsterDrop and connect using the helper code shown in PowerShell.' });
+        return send(200, { message: 'Publisher running. Connect from the MonsterDrop Surge Publisher tab.' });
       }
       return send(403, { error: 'This helper accepts your MonsterDrop site only.' });
     }
@@ -159,7 +168,11 @@ function start() {
       res.writeHead(204);
       return res.end();
     }
-    if (req.headers['x-monsterdrop-token'] !== TOKEN) return send(403, { error: 'Wrong helper code. Copy the current code from PowerShell.' });
+    const supplied = Buffer.from(String(req.headers['x-monsterdrop-token'] || ''));
+    const expected = Buffer.from(TOKEN);
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+      return send(403, { error: 'Wrong publisher connection key. Check MONSTERDROP_SURGE_KEY in Render or your local helper code.' });
+    }
     if (req.method === 'GET' && req.url === '/health') return send(200, { connected: true, busy, job });
     if (req.method === 'GET' && req.url === '/job') return send(200, { job });
     if (req.method !== 'POST' || req.url !== '/publish') return send(404, { error: 'Not found.' });
@@ -175,7 +188,7 @@ function start() {
       job = { id: crypto.randomBytes(8).toString('hex'), state: 'running', count: data.count, results: [], error: '' };
       const current = job;
       send(202, { job: current });
-      publish(data, results => { current.results = [...results]; })
+      publisher(data, results => { current.results = [...results]; })
         .then(results => { current.results = results; current.state = 'finished'; })
         .catch(error => { current.error = error.message; current.state = 'failed'; })
         .finally(() => { busy = false; });
@@ -186,7 +199,11 @@ function start() {
   });
   server.requestTimeout = 0;
   server.on('error', error => console.error(error.message));
-  server.listen(PORT, '127.0.0.1', () => {
+  server.listen(port, HOSTED ? '0.0.0.0' : '127.0.0.1', () => {
+    if (HOSTED) {
+      console.log('Online Surge publisher ready. Use the service URL and MONSTERDROP_SURGE_KEY in MonsterDrop.');
+      return;
+    }
     console.log('MonsterDrop helper: ' + ORIGIN);
     console.log('Helper code: ' + TOKEN);
     console.log('Paste this code into your MonsterDrop Surge Publisher tab.');
@@ -194,5 +211,7 @@ function start() {
   });
   return server;
 }
-if (require.main === module) start();
+if (require.main === module) {
+  try { start(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+}
 module.exports = { validate, copySite, prepare, brandHTML, start };
