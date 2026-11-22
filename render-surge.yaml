@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: monsterdrop-surge
+    runtime: node
+    plan: free
+    buildCommand: npm install --no-save surge@0.56.0 && node --check monsterdrop-helper.cjs
+    startCommand: node monsterdrop-helper.cjs
+    healthCheckPath: /ready
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: MONSTERDROP_SURGE_HOSTED
+        value: "1"
+      - key: SURGE_TOKEN
+        sync: false
+      - key: MONSTERDROP_SURGE_KEY
+        generateValue: true
