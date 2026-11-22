@@ -142,12 +142,21 @@ async function sendToDiscord(token, batch, request = fetch, wait = ms =>
   }
 }
 
-function start(token, { port = PORT, request = fetch } = {}) {
+function start(token, {
+  hosted = process.env.MONSTERDROP_HOSTED === '1',
+  port = Number(process.env.PORT) || PORT,
+  connectionKey = process.env.MONSTERDROP_SEND_KEY,
+  request = fetch
+} = {}) {
   if (!token || /\s/.test(token)) {
-    throw new Error('Set DISCORD_BOT_TOKEN in PowerShell to your bot token first.');
+    throw new Error('Set DISCORD_BOT_TOKEN in the server environment to your bot token first.');
   }
 
-  const code = crypto.randomBytes(24).toString('hex');
+  if (hosted && (!connectionKey || connectionKey.length < 32 || /\s/.test(connectionKey))) {
+    throw new Error('Set MONSTERDROP_SEND_KEY to a private key of at least 32 characters.');
+  }
+  const code = hosted ? connectionKey : crypto.randomBytes(24).toString('hex');
+  const instance = crypto.randomUUID();
   const jobs = new Map();
   let busy = false;
 
@@ -161,7 +170,11 @@ function start(token, { port = PORT, request = fetch } = {}) {
       res.end(JSON.stringify(data));
     }
 
-    if (req.headers.host !== '127.0.0.1:' + server.address().port ||
+    if (hosted && req.method === 'GET' && req.url === '/health') {
+      return reply(200, { status: 'ok' });
+    }
+
+    if ((!hosted && req.headers.host !== '127.0.0.1:' + server.address().port) ||
         req.headers.origin !== ORIGIN) {
       return reply(403, { error: 'Open MonsterDrop directly on GitHub Pages.' });
     }
@@ -172,22 +185,29 @@ function start(token, { port = PORT, request = fetch } = {}) {
       const headers = String(req.headers['access-control-request-headers'] || '')
         .toLowerCase().split(',').map(value => value.trim()).filter(Boolean);
       if (!['GET', 'POST'].includes(method) ||
-          headers.some(header => !['content-type', 'x-monsterdrop-discord-code'].includes(header))) {
+          headers.some(header => !['content-type', 'x-monsterdrop-discord-code',
+            'x-monsterdrop-server-instance'].includes(header))) {
         return reply(403, { error: 'Unsupported request.' });
       }
       res.writeHead(204, {
         'Access-Control-Allow-Methods': 'GET, POST',
-        'Access-Control-Allow-Headers': 'Content-Type, X-MonsterDrop-Discord-Code',
+        'Access-Control-Allow-Headers': 'Content-Type, X-MonsterDrop-Discord-Code, X-MonsterDrop-Server-Instance',
         'Access-Control-Allow-Private-Network': 'true'
       });
       return res.end();
     }
 
-    if (req.headers['x-monsterdrop-discord-code'] !== code) {
-      return reply(403, { error: 'Paste the current Discord helper code from PowerShell.' });
+    const suppliedCode = Buffer.from(String(req.headers['x-monsterdrop-discord-code'] || ''));
+    const expectedCode = Buffer.from(code);
+    if (suppliedCode.length !== expectedCode.length ||
+        !crypto.timingSafeEqual(suppliedCode, expectedCode)) {
+      return reply(403, { error: 'The connection key is incorrect. Check your server settings.' });
     }
 
     const url = new URL(req.url, 'http://127.0.0.1');
+    if (req.method === 'GET' && url.pathname === '/session') {
+      return reply(200, { instance });
+    }
     if (req.method === 'GET' && url.pathname === '/job') {
       const stored = jobs.get(url.searchParams.get('id'));
       return stored
@@ -196,6 +216,10 @@ function start(token, { port = PORT, request = fetch } = {}) {
     }
     if (req.method !== 'POST' || url.pathname !== '/send') {
       return reply(404, { error: 'Unknown route.' });
+    }
+
+    if (hosted && req.headers['x-monsterdrop-server-instance'] !== instance) {
+      return reply(409, { error: 'The server restarted. Check Discord, then refresh MonsterDrop before sending a new batch.' });
     }
 
     let batch;
@@ -255,10 +279,12 @@ function start(token, { port = PORT, request = fetch } = {}) {
       ? 'The Discord helper is already running on port ' + port + '.'
       : error.message);
   });
-  server.listen(port, '127.0.0.1', () => {
-    console.log('Discord helper code: ' + code);
+  server.listen(port, hosted ? '0.0.0.0' : '127.0.0.1', () => {
+    if (!hosted) console.log('Discord helper code: ' + code);
     console.log('Channel: https://discord.com/channels/' + GUILD + '/' + CHANNEL);
-    console.log('Paste the helper code into MonsterDrop. Keep PowerShell open.');
+    console.log(hosted
+      ? 'Online Discord sender is ready. Use the service URL and MONSTERDROP_SEND_KEY in MonsterDrop.'
+      : 'Paste the helper code into MonsterDrop. Keep PowerShell open.');
   });
   return { server, code };
 }
