@@ -14,18 +14,41 @@ let busy = false;
 let job = null;
 const WEBSITE = 'https://linky1234.github.io';
 
+function commandErrorDetail(output) {
+  let detail = String(output);
+  for (const name of ['SURGE_TOKEN', 'TRAVIS_SURGE_TOKEN', 'DISCORD_BOT_TOKEN',
+    'MONSTERDROP_SURGE_KEY', 'MONSTERDROP_SEND_KEY']) {
+    const secret = process.env[name];
+    if (secret) detail = detail.split(secret).join('[redacted]');
+  }
+  return detail.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+    .trim().slice(-1600);
+}
+
 function run(command, args, cwd) {
   return new Promise((resolve, reject) => {
+    const label = command === 'git' ? 'Git clone' : 'Surge publish';
     const child = spawn(command, args, { cwd, shell: false, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
-    const timer = setTimeout(() => { child.kill(); reject(new Error('Command timed out. Check the publisher status before starting another batch.')); }, 180000);
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(label + ' timed out. Check the publisher status before starting another batch.'));
+    }, 180000);
     child.stdout.on('data', chunk => { output = (output + chunk).slice(-200000); });
     child.stderr.on('data', chunk => { output = (output + chunk).slice(-200000); });
-    child.on('error', error => { clearTimeout(timer); reject(error); });
-    child.on('close', code => {
+    child.on('error', error => {
+      clearTimeout(timer);
+      reject(new Error(label + ' could not start: ' + commandErrorDetail(error.message)));
+    });
+    child.on('close', (code, signal) => {
       clearTimeout(timer);
       if (code === 0) resolve(output);
-      else reject(new Error('Command failed. Check Git, Surge credentials, account limits, and the repository branch. For a local helper, run npx surge login.'));
+      else {
+        const detail = commandErrorDetail(output);
+        reject(new Error(label + ' failed (' + (signal ? 'signal ' + signal : 'exit ' + code) + ')' +
+          (detail ? ': ' + detail : '. The command returned no error details. Check the Render service logs.')));
+      }
     });
   });
 }
@@ -267,4 +290,4 @@ function start({ port = HOSTED ? Number(process.env.PORT) || 10000 : PORT, publi
 if (require.main === module) {
   try { start(); } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-module.exports = { validate, copySite, prepare, brandHTML, notifySurgeJob, start };
+module.exports = { validate, copySite, prepare, brandHTML, notifySurgeJob, commandErrorDetail, run, start };
