@@ -6,6 +6,7 @@ const ORIGIN = 'https://linky1234.github.io';
 const CHANNEL = '1499944531016028342';
 const GUILD = '1468487779456389163';
 const MAX_BYTES = 8 * 1024 * 1024;
+const USER_AGENT = 'DiscordBot (https://github.com/Linky1234/MonsterDrop, 1.1.0)';
 
 function validateBatch(input) {
   if (!input || typeof input.id !== 'string' ||
@@ -46,6 +47,43 @@ function buildAttachment(groups) {
   return content;
 }
 
+async function discordFailure(response, stage, token) {
+  let data;
+  let raw = '';
+  try {
+    raw = await response.text();
+    data = JSON.parse(raw);
+  } catch {
+    // A host or edge rejection may be HTML rather than Discord's JSON.
+  }
+  const code = Number.isSafeInteger(data?.code) ? data.code : null;
+  let detail = typeof data?.message === 'string' ? data.message : '';
+  if (token) detail = detail.split(token).join('[redacted]');
+  detail = detail.replace(/[\r\n\x00-\x1f]/g, ' ').slice(0, 240);
+
+  const hints = {
+    50001: 'The bot cannot access the destination channel. Check its channel membership and View Channel permission.',
+    50013: 'Check this bot\'s Send Messages and Attach Files permissions in the destination channel. For a thread, also allow Send Messages in Threads and ensure the bot can join it.',
+    50083: 'The destination thread is archived. Unarchive it before sending.',
+    40058: 'A forum channel cannot receive a plain message. Use a text channel or a forum post thread.',
+    10003: 'The configured destination channel was not found.',
+    40333: 'Discord reports a Cloudflare rejection. The sender now includes the required bot User-Agent.',
+    40005: 'The upload is too large. Send fewer links.',
+    50045: 'The attachment is too large. Send fewer links.',
+    50014: 'Check DISCORD_BOT_TOKEN in Render.'
+  };
+  let hint = hints[code] || '';
+  if (!hint && response.status === 401) hint = 'Check DISCORD_BOT_TOKEN in Render.';
+  if (!data && response.status === 403) {
+    hint = /cloudflare/i.test(raw)
+      ? 'A Cloudflare response rejected the request. Channel permissions alone may not resolve this.'
+      : 'The response was not Discord JSON, so no Discord error code was available.';
+  }
+  return new Error('Discord ' + stage + ' failed: HTTP ' + response.status +
+    (code !== null ? ', code ' + code : '') +
+    (detail ? ' — ' + detail : '') + (hint ? '. ' + hint : ''));
+}
+
 async function sendToDiscord(token, batch, request = fetch, wait = ms =>
   new Promise(resolve => setTimeout(resolve, ms))) {
   let channelResponse;
@@ -53,7 +91,7 @@ async function sendToDiscord(token, batch, request = fetch, wait = ms =>
     channelResponse = await request(
       'https://discord.com/api/v10/channels/' + CHANNEL,
       {
-        headers: { Authorization: 'Bot ' + token },
+        headers: { Authorization: 'Bot ' + token, 'User-Agent': USER_AGENT },
         redirect: 'error',
         signal: AbortSignal.timeout(20000)
       }
@@ -63,8 +101,7 @@ async function sendToDiscord(token, batch, request = fetch, wait = ms =>
   }
 
   if (!channelResponse.ok) {
-    throw new Error('Discord channel check returned HTTP ' + channelResponse.status +
-      '. Check the bot token and its View Channels permission.');
+    throw await discordFailure(channelResponse, 'channel check', token);
   }
 
   const channel = await channelResponse.json();
@@ -100,7 +137,7 @@ async function sendToDiscord(token, batch, request = fetch, wait = ms =>
         'https://discord.com/api/v10/channels/' + CHANNEL + '/messages',
         {
           method: 'POST',
-          headers: { Authorization: 'Bot ' + token },
+          headers: { Authorization: 'Bot ' + token, 'User-Agent': USER_AGENT },
           body,
           redirect: 'error',
           signal: AbortSignal.timeout(30000)
@@ -121,8 +158,7 @@ async function sendToDiscord(token, batch, request = fetch, wait = ms =>
     }
 
     if (!response.ok) {
-      throw new Error('Discord returned HTTP ' + response.status +
-        '. Check Send Messages and Attach Files permissions and the attachment size.');
+      throw await discordFailure(response, 'message upload', token);
     }
 
     let message;
