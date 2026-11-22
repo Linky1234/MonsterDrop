@@ -5,6 +5,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { createRequire } = require('node:module');
+const { sendToDiscord } = require('./monsterdrop-discord.cjs');
 const PORT = 43127;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const HOSTED = process.env.MONSTERDROP_SURGE_HOSTED === '1';
@@ -134,7 +135,43 @@ async function publish(data, onResult = () => {}) {
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
 }
 
-function start({ port = HOSTED ? Number(process.env.PORT) || 10000 : PORT, publisher = publish } = {}) {
+async function notifySurgeJob(current, {
+  token = process.env.DISCORD_BOT_TOKEN,
+  sender = sendToDiscord
+} = {}) {
+  const groups = [
+    { provider: 'Surge - HTTP checked', status: 'Published and HTTP-checked' },
+    { provider: 'Surge - HTTP check inconclusive', status: 'Published; HTTP check inconclusive' }
+  ].map(group => ({
+    provider: group.provider,
+    links: current.results.filter(item => item.status === group.status).map(item => item.url)
+  })).filter(group => group.links.length);
+
+  if (!groups.length) {
+    current.discord = { state: 'skipped', messageURL: '', error: '' };
+    return;
+  }
+  if (!token || /\s/.test(token)) {
+    current.discord = {
+      state: 'failed', messageURL: '',
+      error: 'Add DISCORD_BOT_TOKEN to the Surge publisher service in Render to enable automatic delivery.'
+    };
+    return;
+  }
+  current.discord = { state: 'sending', messageURL: '', error: '' };
+  try {
+    const result = await sender(token, {
+      id: current.id,
+      perProvider: current.count,
+      groups
+    });
+    current.discord = { state: 'sent', messageURL: result.messageURL, error: '', total: result.total };
+  } catch (error) {
+    current.discord = { state: 'failed', messageURL: '', error: error.message };
+  }
+}
+
+function start({ port = HOSTED ? Number(process.env.PORT) || 10000 : PORT, publisher = publish, notifier = notifySurgeJob } = {}) {
   if (HOSTED && (!TOKEN || TOKEN.length < 32 || /\s/.test(TOKEN))) {
     throw new Error('Set MONSTERDROP_SURGE_KEY to a private key of at least 32 characters.');
   }
@@ -185,13 +222,29 @@ function start({ port = HOSTED ? Number(process.env.PORT) || 10000 : PORT, publi
         if (body.length > 4096) throw new Error('Request too large.');
       }
       const data = validate(JSON.parse(body));
-      job = { id: crypto.randomBytes(8).toString('hex'), state: 'running', count: data.count, results: [], error: '' };
+      job = { id: crypto.randomBytes(8).toString('hex'), state: 'running', phase: 'publishing', count: data.count, results: [], error: '', discord: { state: 'waiting', messageURL: '', error: '' } };
       const current = job;
       send(202, { job: current });
-      publisher(data, results => { current.results = [...results]; })
-        .then(results => { current.results = results; current.state = 'finished'; })
-        .catch(error => { current.error = error.message; current.state = 'failed'; })
-        .finally(() => { busy = false; });
+      // Complete notification on the server, even if the browser disconnects.
+      (async () => {
+        let state = 'finished';
+        try {
+          current.results = await publisher(data, results => { current.results = [...results]; });
+        } catch (error) {
+          current.error = error.message;
+          state = 'failed';
+        }
+        current.phase = 'notifying';
+        try {
+          await notifier(current);
+        } catch (error) {
+          current.discord = { state: 'failed', messageURL: '', error: error.message };
+        } finally {
+          current.phase = 'complete';
+          current.state = state;
+          busy = false;
+        }
+      })();
     } catch (error) {
       busy = false;
       send(400, { error: error.message });
@@ -214,4 +267,4 @@ function start({ port = HOSTED ? Number(process.env.PORT) || 10000 : PORT, publi
 if (require.main === module) {
   try { start(); } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-module.exports = { validate, copySite, prepare, brandHTML, start };
+module.exports = { validate, copySite, prepare, brandHTML, notifySurgeJob, start };
