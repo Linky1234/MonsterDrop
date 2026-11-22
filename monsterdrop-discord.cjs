@@ -3,7 +3,7 @@ const crypto = require('node:crypto');
 
 const PORT = 43130;
 const ORIGIN = 'https://linky1234.github.io';
-const CHANNEL = '1499944531016028342';
+const CHANNEL = '1501072686921683034';
 const GUILD = '1468487779456389163';
 const MAX_BYTES = 8 * 1024 * 1024;
 const USER_AGENT = 'DiscordBot (https://github.com/Linky1234/MonsterDrop, 1.1.0)';
