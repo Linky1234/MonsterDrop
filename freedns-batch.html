@@ -229,8 +229,14 @@ async function lookup(hostname, ip) {
       .map(answer => answer.data);
 
     if (!addresses.length) return { text: "No IPv4 record yet" };
-    if (addresses.every(address => address === ip)) return { text: "IP matches", matches: true };
-    return { text: "DNS returned " + [...new Set(addresses)].join(", ") };
+    const unique = [...new Set(addresses)];
+    if (unique.includes(ip)) {
+      return {
+        text: unique.length === 1 ? "IP matches" : "IP matches; also resolves to " + unique.filter(address => address !== ip).join(", "),
+        matches: true
+      };
+    }
+    return { text: "DNS returned " + unique.join(", ") };
   } catch {
     return { text: "DNS lookup unavailable. Try again." };
   }
@@ -288,7 +294,8 @@ el("check").addEventListener("click", async () => {
     el("copy").disabled = urls.length === 0;
     el("sendDiscord").disabled = urls.length === 0;
     el("checkStatus").textContent =
-      urls.length + " of " + batch.records.length + " match. Check again after pending records appear in DNS.";
+      urls.length + " of " + batch.records.length + " include the entered IP. " +
+      (urls.length < batch.records.length ? "Register missing names in FreeDNS, then check again after the records appear." : "Check HTTPS separately before sharing.");
   } finally {
     el("prepare").disabled = false;
     el("check").disabled = false;
