@@ -56,12 +56,12 @@
     <p class="muted">These are DNS records. To serve a website, the destination server must accept the new names and have HTTPS configured for them.</p>
   </form>
   <h2>FreeDNS Batch</h2>
-  <p>Prepare up to five A records. Choose a shared domain and enter the IPv4 address you want the names to point to.</p>
+  <p>Prepare up to five A records. Choose a public FreeDNS domain and enter your server’s IPv4 address. You can also check records you already created.</p>
 
   <form id="batchForm">
     <div class="grid">
       <label>Shared domain
-        <input id="domain" placeholder="example.com" required>
+        <input id="domain" placeholder="chickenkiller.com" required>
       </label>
       <label>Destination IPv4 address
         <input id="ip" placeholder="192.0.2.10" required>
@@ -69,18 +69,8 @@
       <label>Count
         <input id="count" type="number" min="1" max="5" value="5" required>
       </label>
-      <label>Filter for follow-up
-        <select id="filter">
-          <option>Lightspeed</option>
-          <option>FortiGuard</option>
-          <option>GoGuardian</option>
-          <option>Linewize</option>
-          <option>Blocksi</option>
-          <option>Blocksi AI</option>
-          <option>Senso</option>
-          <option>LanSchool</option>
-          <option>Cisco Talos</option>
-        </select>
+      <label>Subdomain labels (optional, one per line)
+        <textarea id="freeDNSLabels" rows="3" placeholder="my-site"></textarea>
       </label>
     </div>
     <button id="prepare" type="submit">Prepare Batch</button>
@@ -102,12 +92,25 @@
         <tbody id="records"></tbody>
       </table>
     </div>
-    <p id="handoff" class="muted"></p>
+    <p><a href="https://freedns.afraid.org/domain/registry/" target="_blank" rel="noopener noreferrer">Browse public FreeDNS domains</a></p>
     <label>DNS-matching URLs
       <textarea id="urls" rows="5" readonly></textarea>
     </label>
     <button id="copy" type="button" disabled>Copy URLs</button>
     <p id="copyStatus" role="status"></p>
+    <div class="panel">
+      <h3>Send verified DNS links to Discord</h3>
+      <div class="grid">
+        <label>Discord bot server URL
+          <input id="discordServerURL" type="url" value="https://monsterdrop-discord.onrender.com">
+        </label>
+        <label>Discord connection key
+          <input id="discordSenderCode" type="password" autocomplete="off">
+        </label>
+      </div>
+      <button id="sendDiscord" type="button" disabled>Send to Discord Bot</button>
+      <p id="freeDNSDiscordStatus" role="status"></p>
+    </div>
     <p class="muted">A DNS match confirms the IPv4 answer from Google Public DNS. HTTPS requires your server to accept the hostname and have a valid certificate for it.</p>
   </section>
 </main>
@@ -186,7 +189,13 @@ function readSettings() {
     throw new Error("Choose between one and five names.");
   }
 
-  return { domain, ip, count, filter: el("filter").value };
+  const names = el("freeDNSLabels").value.toLowerCase().split(/\r?\n/)
+    .map(name => name.trim()).filter(Boolean);
+  if (names.length > 5 || new Set(names).size !== names.length ||
+      names.some(name => !dnsLabel.test(name) || name.length + domain.length > 252)) {
+    throw new Error("Enter up to five distinct subdomain labels, each on its own line.");
+  }
+  return { domain, ip, names: names.length ? names : makeNames(count) };
 }
 
 function makeNames(count) {
@@ -216,7 +225,7 @@ async function lookup(hostname, ip) {
     if (result.Status !== 0) return { text: "DNS lookup inconclusive" };
 
     const addresses = (result.Answer || [])
-      .filter(answer => answer.type === 1)
+      .filter(answer => answer.type === 1 && answer.name?.toLowerCase().replace(/\.$/, "") === hostname)
       .map(answer => answer.data);
 
     if (!addresses.length) return { text: "No IPv4 record yet" };
@@ -233,7 +242,7 @@ el("batchForm").addEventListener("submit", event => {
 
   try {
     const settings = readSettings();
-    const records = makeNames(settings.count).map(name => {
+    const records = settings.names.map(name => {
       const hostname = name + "." + settings.domain;
       const row = document.createElement("tr");
       for (const value of [name, hostname, "Prepared"]) {
@@ -247,9 +256,8 @@ el("batchForm").addEventListener("submit", event => {
     el("instructions").textContent =
       "Add each row in FreeDNS as type A. Select " + batch.domain +
       " and use " + batch.ip + " as the destination. Complete any prompts in FreeDNS.";
-    el("handoff").textContent =
-      "After DNS matches, copy the URLs into your filter checker and select " + batch.filter + ".";
     el("batch").hidden = false;
+    el("sendDiscord").disabled = true;
     el("checkStatus").textContent = "";
     el("copyStatus").textContent = "";
     el("urls").value = "";
@@ -266,6 +274,7 @@ el("check").addEventListener("click", async () => {
   el("copy").disabled = true;
   el("urls").value = "";
   el("copyStatus").textContent = "";
+  el("sendDiscord").disabled = true;
   el("checkStatus").textContent = "Checking DNS…";
 
   try {
@@ -277,6 +286,7 @@ el("check").addEventListener("click", async () => {
     const urls = matches.filter(Boolean);
     el("urls").value = urls.join("\n");
     el("copy").disabled = urls.length === 0;
+    el("sendDiscord").disabled = urls.length === 0;
     el("checkStatus").textContent =
       urls.length + " of " + batch.records.length + " match. Check again after pending records appear in DNS.";
   } finally {
@@ -292,6 +302,78 @@ el("copy").addEventListener("click", async () => {
   } catch {
     el("urls").select();
     el("copyStatus").textContent = "Press Ctrl+C to copy the selected URLs.";
+  }
+});
+
+let pendingDiscord;
+async function discordRequest(base, key, path, payload, instance) {
+  const response = await fetch(base + path, {
+    method: payload ? "POST" : "GET",
+    credentials: "omit",
+    headers: {
+      "X-MonsterDrop-Discord-Code": key,
+      ...(payload ? { "Content-Type": "application/json", "X-MonsterDrop-Server-Instance": instance } : {})
+    },
+    body: payload ? JSON.stringify(payload) : undefined,
+    signal: AbortSignal.timeout(120000)
+  });
+  const data = await response.json();
+  if (!response.ok) throw Error(data.error || "Discord server rejected the request.");
+  return data;
+}
+
+el("sendDiscord").addEventListener("click", async () => {
+  const button = el("sendDiscord");
+  const status = el("freeDNSDiscordStatus");
+  const key = el("discordSenderCode").value.trim();
+  const links = el("urls").value.split("\n").filter(Boolean);
+  if (!links.length || button.disabled) return;
+  if (!key) {
+    status.textContent = "Enter the Discord connection key from Render.";
+    return;
+  }
+  button.disabled = el("prepare").disabled = el("check").disabled = true;
+  try {
+    const url = new URL(el("discordServerURL").value.trim());
+    if (url.protocol !== "https:" || url.username || url.password ||
+        url.pathname !== "/" || url.search || url.hash) {
+      throw Error("Enter the HTTPS Discord bot server address without a path.");
+    }
+    const signature = JSON.stringify([url.origin, links]);
+    if (!pendingDiscord || pendingDiscord.signature !== signature) {
+      pendingDiscord = { signature, payload: {
+        id: crypto.randomUUID(), perProvider: links.length,
+        groups: [{ provider: "FreeDNS - DNS verified", links }]
+      }};
+    }
+    const { payload } = pendingDiscord;
+    status.textContent = "Connecting to the Discord bot…";
+    if (!pendingDiscord.instance) {
+      const session = await discordRequest(url.origin, key, "/session");
+      if (!session.instance) throw Error("The Discord server did not return a session.");
+      pendingDiscord.instance = session.instance;
+    }
+    let { job } = await discordRequest(url.origin, key, "/send", payload, pendingDiscord.instance);
+    for (let attempt = 0; job?.state === "sending" && attempt < 90; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      ({ job } = await discordRequest(url.origin, key, "/job?id=" + encodeURIComponent(payload.id)));
+    }
+    if (!job || job.state === "sending") throw Error("Delivery is unconfirmed. Check Discord before retrying.");
+    pendingDiscord = null;
+    if (job.state !== "sent") throw Error(job.error || "Discord delivery failed.");
+    status.textContent = "Sent " + links.length + " DNS-verified link(s) to Discord. ";
+    if (/^https:\/\/discord\.com\/channels\/1468487779456389163\/1501072686921683034\/\d+$/.test(job.messageURL || "")) {
+      const link = document.createElement("a");
+      link.href = job.messageURL;
+      link.textContent = "Open Discord message";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      status.append(link);
+    }
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = el("prepare").disabled = el("check").disabled = false;
   }
 });
 </script>
