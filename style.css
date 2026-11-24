@@ -623,3 +623,93 @@ textarea::placeholder {
     flex-direction: column;
   }
 }
+
+/* Shared tool layout, including narrow Google Sites embeds. */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(ellipse at 88% 0%, #123c50, transparent 48%),
+    radial-gradient(ellipse at 12% 85%, #152746, transparent 45%),
+    var(--bg);
+}
+
+.sidebar {
+  background: linear-gradient(165deg, #0d2234, var(--sidebar) 70%);
+}
+
+.brand-icon {
+  background: linear-gradient(145deg, #16536a, #102a46);
+  box-shadow: 0 6px 22px #04131e80;
+}
+
+.topbar {
+  background: #081827a8;
+}
+
+.heading {
+  padding: clamp(20px, 4vw, 36px);
+  border: 1px solid #31576c;
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at 95% 0%, #17726760, transparent 62%),
+    linear-gradient(135deg, #132d45, #0b2031);
+}
+
+.heading h1 {
+  font-size: clamp(26px, 4vw, 42px);
+}
+
+.heading p:last-child {
+  margin-bottom: 0;
+}
+
+.panel, .stat, .preset-card {
+  background: linear-gradient(150deg, #142b40, #102236);
+  box-shadow: 0 8px 24px #03111b45;
+}
+
+.panel a:not(.primary):not(.secondary) {
+  color: #7eece0;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid #8ff5eb;
+  outline-offset: 3px;
+}
+
+.primary {
+  background: linear-gradient(125deg, #72f4e3, #37d9cf);
+  box-shadow: 0 4px 14px #21cfb824;
+}
+
+@media (max-width: 700px) {
+  .sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .sidebar nav :is(.nav, .converter-nav) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stat {
+    min-width: 0;
+    padding: 10px 8px;
+  }
+
+  .stat span { font-size: 11px; }
+  .stat strong { font-size: clamp(15px, 4vw, 22px); }
+}
