@@ -313,17 +313,20 @@
     </p>
 
     <p class="muted">
-      Start start-filter-checker.cjs on this computer first.
-      Results follow smartfoloo's category rules, not your school's custom policy.
+      Deploy the checker once on Render using render-filter-checker.yaml, then enter its HTTPS address below.
+      Results use smartfoloo’s category rules and may differ from your school’s custom policy.
       Unavailable lookup services may return errors.
     </p>
 
+    <label>Checker server URL
+      <input id="filterCheckerURL" type="url" placeholder="https://monsterdrop-filter-checker.onrender.com">
+    </label>
     <div class="actions">
       <button id="loadFilterChecker" type="button" class="primary">
         Open blocker checker
       </button>
 
-      <a class="secondary" href="http://127.0.0.1:43128/"
+      <a id="filterCheckerLink" class="secondary" hidden
         target="_blank" rel="noopener noreferrer">
         Open in a separate tab
       </a>
@@ -338,7 +341,7 @@
 
     <p class="muted">
       If the panel stays blank, use the separate-tab link.
-      Allow local-device access if your browser asks.
+      The hosted checker can take a moment to start.
       <a href="https://github.com/smartfoloo/filter-checker"
         target="_blank" rel="noopener noreferrer">
         Checker source by smartfoloo
@@ -533,14 +536,32 @@
 
 <script>
 window.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("loadFilterChecker").addEventListener("click", () => {
-    const frame = document.getElementById("filterCheckerFrame");
-    frame.hidden = false;
-    frame.src = "http://127.0.0.1:43128/";
+  const checkerURL = document.getElementById("filterCheckerURL");
+  const checkerStorage = "monsterdrop.filterCheckerURL";
+  try {
+    checkerURL.value = localStorage.getItem(checkerStorage) || "";
+  } catch {}
 
-    document.getElementById("filterCheckerStatus").textContent =
-      "Local checker requested. Choose filters and paste domains in the panel below. " +
-      "If it stays blank, start the launcher or use the separate-tab link.";
+  document.getElementById("loadFilterChecker").addEventListener("click", () => {
+    const status = document.getElementById("filterCheckerStatus");
+    let url;
+    try {
+      url = new URL(checkerURL.value.trim());
+      if (url.protocol !== "https:" || url.username || url.password ||
+          url.pathname !== "/" || url.search || url.hash) throw new Error();
+    } catch {
+      status.textContent = "Enter the Render service’s HTTPS address without a path.";
+      return;
+    }
+
+    try { localStorage.setItem(checkerStorage, url.origin); } catch {}
+    const frame = document.getElementById("filterCheckerFrame");
+    const link = document.getElementById("filterCheckerLink");
+    link.href = url.origin;
+    link.hidden = false;
+    if (frame.src !== url.href) frame.src = url.href;
+    frame.hidden = false;
+    status.textContent = "Opening the hosted checker. If the panel stays blank, open it in a separate tab.";
   });
 
   const originalSetView = setView;
