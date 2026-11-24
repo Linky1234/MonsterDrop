@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: monsterdrop-filter-checker
+    repo: https://github.com/smartfoloo/filter-checker
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
