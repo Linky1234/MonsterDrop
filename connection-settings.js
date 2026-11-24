@@ -16,6 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
       url: "publisherServerURL",
       key: "helperCode",
       local: "http://127.0.0.1:43127"
+    },
+    {
+      name: "MonsterDNS",
+      storage: "monsterdrop.connection.dns.v1",
+      url: "monsterDNSURL",
+      key: "monsterDNSCode",
+      busy: "monsterDNSCreate"
     }
   ];
 
@@ -26,7 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if ((url.protocol !== "https:" && url.origin !== local) ||
         url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
-      throw new Error("Use the HTTPS server address without a path, or the local helper address.");
+      throw new Error(local
+        ? "Use the HTTPS server address without a path, or the local helper address."
+        : "Use the HTTPS server address without a path.");
     }
     return url.origin;
   }
@@ -34,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
   for (const config of connections) {
     const urlInput = document.getElementById(config.url);
     const keyInput = document.getElementById(config.key);
-    const panel = keyInput?.closest(".panel");
+    const panel = keyInput?.closest(".panel, #monsterDNSForm");
     if (!urlInput || !keyInput || !panel) continue;
 
     const controls = document.createElement("div");
@@ -114,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       try {
         localStorage.removeItem(config.storage);
-        apply(urlInput.defaultValue || config.local, "");
+        apply(urlInput.defaultValue || config.local || "", "");
         status.textContent = config.name + " connection forgotten. The saved URL and key were removed.";
       } catch {
         status.textContent = "Could not remove saved settings. Check this browser's site-storage permissions.";
