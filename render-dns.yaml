@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: monsterdrop-dns
+    runtime: node
+    plan: free
+    buildCommand: node --check monsterdns.cjs
+    startCommand: node monsterdns.cjs
+    healthCheckPath: /health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DYNV6_TOKEN
+        sync: false
+      - key: MONSTERDNS_ZONE
+        sync: false
+      - key: MONSTERDNS_KEY
+        generateValue: true
