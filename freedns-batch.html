@@ -26,21 +26,27 @@
 <main>
   <a href="./index.html">← MonsterDrop</a>
   <h1>MonsterDNS</h1>
-  <p>Create up to five IPv4 DNS records under <strong>monsterdns-1234.dns.army</strong>.</p>
+  <p>Create an IPv4 record in a dynv6 zone you manage.</p>
   <form id="monsterDNSForm">
     <div class="grid">
+      <label>DNS zone
+        <input id="monsterDNSZone" placeholder="example.dns.army" required>
+      </label>
+      <label>Subdomain
+        <input id="monsterDNSLabel" placeholder="www" maxlength="63" required>
+      </label>
       <label>Destination IPv4 address
         <input id="monsterDNSIP" placeholder="Server IPv4 address" required>
       </label>
-      <label>Count
-        <input id="monsterDNSCount" type="number" min="1" max="5" value="1" required>
+      <label>Publisher server URL
+        <input id="monsterDNSURL" type="url" placeholder="https://monsterdrop-dns.onrender.com" required>
       </label>
-      <label>MonsterDNS helper code
+      <label>MonsterDNS connection key
         <input id="monsterDNSCode" type="password" autocomplete="off" required>
       </label>
     </div>
-    <p class="muted">Run <code>node monsterdns.cjs</code> in PowerShell and paste the code it prints.</p>
-    <button id="monsterDNSCreate" type="submit">Create Records</button>
+    <p class="muted">Use your Render service URL and its MONSTERDNS_KEY. Keep your dynv6 token in Render.</p>
+    <button id="monsterDNSCreate" type="submit">Create A record</button>
     <p id="monsterDNSStatus" role="status"></p>
     <ul id="monsterDNSResults"></ul>
     <label>Created hostnames
@@ -54,10 +60,10 @@
   <form id="batchForm">
     <div class="grid">
       <label>Shared domain
-        <input id="domain" placeholder="proasist.cl" required>
+        <input id="domain" placeholder="example.com" required>
       </label>
       <label>Destination IPv4 address
-        <input id="ip" placeholder="152.53.38.5" required>
+        <input id="ip" placeholder="192.0.2.10" required>
       </label>
       <label>Count
         <input id="count" type="number" min="1" max="5" value="5" required>
@@ -115,38 +121,38 @@ document.getElementById("monsterDNSForm").addEventListener("submit", async event
   const status = get("monsterDNSStatus");
   const results = get("monsterDNSResults");
   const names = get("monsterDNSNames");
-  const count = Number(get("monsterDNSCount").value);
+  const domain = get("monsterDNSZone").value.trim().toLowerCase().replace(/\.$/, "");
+  const name = get("monsterDNSLabel").value.trim().toLowerCase();
+  const ip = get("monsterDNSIP").value.trim();
   button.disabled = true;
   status.textContent = "Creating records…";
   results.replaceChildren();
   names.value = "";
 
   try {
-    const response = await fetch("http://127.0.0.1:43129/records", {
+    const server = new URL(get("monsterDNSURL").value.trim());
+    if (server.protocol !== "https:" || server.username || server.password ||
+        server.pathname !== "/" || server.search || server.hash) {
+      throw Error("Use the HTTPS service address without a path.");
+    }
+    const response = await fetch(server.origin + "/records", {
       method: "POST",
       credentials: "omit",
       headers: {
         "Content-Type": "application/json",
         "X-MonsterDNS-Code": get("monsterDNSCode").value.trim()
       },
-      body: JSON.stringify({ ip: get("monsterDNSIP").value.trim(), count }),
-      signal: AbortSignal.timeout(60000)
+      body: JSON.stringify({ domain, name, ip }),
+      signal: AbortSignal.timeout(120000)
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Record creation failed.");
 
-    for (const record of data.records) {
-      const item = document.createElement("li");
-      item.textContent = record.hostname + " — " + record.status;
-      results.append(item);
-    }
-
-    const created = data.records.filter(record => record.created);
-    names.value = created.map(record => record.hostname).join("\n");
-    status.textContent = created.length + " of " + count + " records confirmed by dynv6.";
+    names.value = data.hostname;
+    status.textContent = data.hostname + " — " + data.status + " at dynv6. DNS changes can take time to appear.";
   } catch (error) {
     status.textContent = error.name === "TypeError" || error.name === "TimeoutError"
-      ? "Could not get a reply. Check PowerShell and your dynv6 zone before retrying."
+      ? "Could not get a reply. Check whether your Render service is live, then check dynv6 before retrying."
       : error.message;
   } finally {
     button.disabled = false;
